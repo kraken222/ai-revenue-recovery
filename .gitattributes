@@ -1,0 +1,8 @@
+# Normalise line endings in the repo. Without this, committing from Windows stores
+# CRLF and anyone cloning on macOS or Linux gets a diff on every file they touch.
+* text=auto eol=lf
+
+# Binary-ish assets git should never try to normalise.
+*.png binary
+*.woff2 binary
+*.db binary
