@@ -1,6 +1,10 @@
 # AI Revenue Recovery
 
+[![tests](https://github.com/kraken222/ai-revenue-recovery/actions/workflows/tests.yml/badge.svg)](https://github.com/kraken222/ai-revenue-recovery/actions/workflows/tests.yml)
+
 An agent that detects payments slipping away, decides what to do about them, and executes a bounded recovery workflow — built for the Razorpay AI Buildathon, Track 03.
+
+CI does more than run the tests: it drives 300 synthetic payments through the whole pipeline and **fails the build if any compliance invariant reports a breach**. A green tick means the loop ran and no contact rule was violated.
 
 Failed recurring payments are not a niche problem: involuntary churn (a payment that fails for mechanical reasons, not because the customer chose to leave) is [20–40% of total subscription churn](https://link.springer.com/article/10.1057/s41270-025-00450-2). The customer wants to keep paying. The money leaves anyway.
 
