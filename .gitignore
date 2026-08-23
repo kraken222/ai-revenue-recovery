@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.env
+*.db
+.venv/
+venv/
+.pytest_cache/
+node_modules/
+dist/
+
+# Impeccable live-mode runtime state (machine-local, not part of the design record).
+.impeccable/live/
+.impeccable/review/
+.impeccable/mocks/
+
+# Scratch
+*.log
+.DS_Store

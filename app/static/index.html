@@ -1,0 +1,1080 @@
+<!--
+THESIS: A recovery agent must prove two things at once — that it earned the money,
+and that it never broke a rule. This is an auditor's working paper, where every
+figure is traced to source and exceptions are listed rather than buried. It refuses
+the SaaS analytics dashboard: no elevated cards, no sparkline filler, no accent-teal
+hero metric.
+OWN-WORLD: Grained green-bar columnar analysis stock. Mono figures in black,
+graphite for tick marks and footings, red for exceptions only, indigo for
+cross-references, violet for the assertion stamp. Printed column rules, not borders.
+Status colour is law: one hue per state. (Amended in review: ticks were graphite,
+not red — a failure hue beside "4/4 compliance" broke the law the line states. The
+stamp records assertions that ran, never a human review that did not.)
+STORY: A judge reads lift, net value and 4/4 compliance in seconds, then sees a
+working register underneath and understands this is a real tool, not a scoreboard.
+FIRST VIEWPORT: W/P header block top-right with the assertion stamp beneath it;
+A-1 lead schedule with causal lift dominant in a wide first bay and net value plus
+compliance a step down beside it, each traced figure over a small neutral label;
+A-2 register of failed payments begins above the fold on green-bar stock.
+FORM: Auditor's working papers; candidate 1 of my grounded list, user-pinned over
+assigned candidate 6 (The Compliance Circular); seed key c38e42bb.
+RAISES: monumental figures over small labels (Crouwel) · sacred mono cell lattice
+(teletext) · whole register at once, worked state per row (doujin catalog) ·
+leader-line annotations carrying values (tensegrity) · status colour as law (arcade).
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<meta charset="utf-8">
+<!-- Without this a phone lays the page out at 980px and scales down, which would
+     shrink an already-dense register below legibility. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recovery Working Papers</title>
+<style>
+  :root {
+    /* Green-bar columnar analysis stock — the native material of financial
+       working papers, and the historical reason tabular data is zebra-striped. */
+    --paper:      #F6F5EE;
+    --bar:        #D6E4CD;
+    --bar-edge:   #BACFAF;
+    --rule:       #9FB295;
+    --rule-faint: #C8CCBE;
+
+    --ink:        #1B1C18;
+    /* Both secondary tiers clear 4.5:1 against the WORST ground they land on, which
+       is the green bar (#D6E4CD), not the paper. Tinted from the stock's own hue
+       rather than grayed, so they read as printed ink instead of faded UI text. */
+    --ink-soft:   #5B5E52;   /* 6.07:1 on paper · 5.00:1 on bar */
+    --ink-faint:  #5F6257;   /* 5.70:1 on paper · 4.70:1 on bar */
+
+    /* Status colours are law: each is used for exactly one meaning, nowhere else.
+       The auditor's pencil hierarchy is real — exceptions are marked in red, but
+       ticks and footings are graphite. Painting the positive marks red would put a
+       failure hue beside every headline figure, including the compliance count. */
+    --red:        #B3271E;   /* exception, fail, lost — nothing else */
+    --graphite:   #4A4E45;   /* tick marks and footings: work done, not alarm */
+    --indigo:     #26467F;   /* cross-reference, traced-to */
+    --violet:     #57337E;   /* reviewer sign-off, pass */
+    --amber:      #8A5B12;   /* pending, waiting */
+
+    --cell:       1.6ch;
+    --sheet-max:  1440px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    background: #E7E5DA;
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    padding: clamp(12px, 2.5vw, 36px);
+    background:
+      /* desk beneath the sheet */
+      radial-gradient(120% 80% at 50% 0%, #EFEDE2 0%, #E2E0D4 60%, #D8D6C9 100%);
+    color: var(--ink);
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    /* This surface is read in a compressed screen recording as well as on a desk,
+       so 11px is the hard floor for anything functional and nothing sits below it. */
+    font-size: 13.5px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Browser surfaces belong to the design, not to the browser. */
+  ::selection { background: #F3D9AE; color: var(--ink); }
+  :focus-visible {
+    outline: 2px solid var(--indigo);
+    outline-offset: 2px;
+  }
+  * { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border: 3px solid var(--paper);
+    border-radius: 0;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+  .sheet {
+    max-width: var(--sheet-max);
+    margin: 0 auto;
+    background: var(--paper);
+    /* A real sheet on a desk: offset and blur, never a zero-offset halo. Paper has
+       no stroked outline — its edge IS the shadow, so committing to elevation alone
+       is both physically truer and avoids the hairline-plus-diffuse-shadow tell. */
+    box-shadow:
+      0 1px 1px rgba(27,28,24,.16),
+      0 2px 5px -1px rgba(27,28,24,.14),
+      0 14px 30px -14px rgba(27,28,24,.30);
+    /* The sheet's own margin: content never sits flush against the paper edge. */
+    padding: 2px 0 8px;
+    /* Actual stock, not an asserted one: fractal noise gives the sheet fiber and
+       print bite. Inline SVG data-URI, so it stays self-contained with no host. */
+    background-image: var(--grain);
+    background-blend-mode: multiply;
+  }
+
+  :root {
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
+  }
+
+
+  /* ---- Working-paper header block ------------------------------------- */
+
+  .wp-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: clamp(16px, 3vw, 48px);
+    align-items: start;
+    padding: clamp(18px, 2.6vw, 30px) clamp(16px, 2.6vw, 34px);
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .wp-title {
+    margin: 0;
+    font-size: clamp(17px, 2.3vw, 25px);
+    font-weight: 700;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+    line-height: 1.15;
+  }
+  .wp-sub {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    letter-spacing: .04em;
+    max-width: 62ch;
+  }
+  .wp-sub b { color: var(--ink); font-weight: 700; }
+
+  /* The index block a working paper carries in its top-right corner. */
+  .wp-index {
+    display: grid;
+    grid-template-columns: auto auto;
+    border: 1px solid var(--ink);
+    align-self: start;
+    min-width: 232px;
+  }
+  .wp-index dt,
+  .wp-index dd {
+    margin: 0;
+    padding: 5px 10px;
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule-faint);
+  }
+  .wp-index dt { color: var(--ink-soft); border-right: 1px solid var(--rule-faint); }
+  .wp-index dd { text-align: right; font-weight: 700; }
+  .wp-index > :nth-last-child(-n+2) { border-bottom: 0; }
+
+  /* The mark belongs on the paper, beside the index block a reviewer would
+     initial — not adrift on the desk under the sheet. */
+  .head-stamp {
+    grid-column: 2;
+    justify-self: end;
+    margin-top: 10px;
+  }
+
+  /* ---- Schedules ------------------------------------------------------- */
+
+  .schedule { border-bottom: 1px solid var(--rule-faint); }
+  .schedule:last-child { border-bottom: 0; }
+
+  .sch-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px clamp(16px, 2.6vw, 34px) 10px;
+  }
+  /* A-1, A-2 … are cross-reference addresses other schedules point at, so the
+     sequence carries real information rather than decorating the section. */
+  .sch-ref {
+    font-weight: 700;
+    letter-spacing: .10em;
+    border: 1px solid var(--ink);
+    padding: 1px 7px;
+    font-size: 11.5px;
+    flex: none;
+  }
+  .sch-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  .sch-note {
+    margin-left: auto;
+    color: var(--ink-faint);
+    font-size: 11.5px;
+    letter-spacing: .04em;
+    text-align: right;
+  }
+
+  /* ---- A-1 lead schedule ---------------------------------------------- */
+
+  /* Monumentality needs a dominant, not a tie: three co-equal bays at one size is
+     the stat-row rhythm the thesis refuses. Net value leads, the other two follow a
+     step down, so the block reads as a schedule with a bottom line. */
+  .lead {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr 1fr;
+    padding: 0 clamp(16px, 2.6vw, 34px) 22px;
+  }
+  .lead-item { padding: 4px 20px 0 0; }
+  .lead-item:last-child { padding-right: 0; }
+  .lead-item + .lead-item {
+    padding-left: 20px;
+    border-left: 1px solid var(--rule-faint);
+  }
+  .lead-label {
+    /* The one label a judge must read in the first seconds of a compressed
+       screen recording — it does not get the scanned-label size. */
+    font-size: 12.5px;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .lead-fig {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 2px 0 0;
+    font-size: clamp(26px, 3.9vw, 40px);
+    font-weight: 700;
+    letter-spacing: -.035em;
+    line-height: 1.02;
+  }
+  .lead-item--lead .lead-fig { font-size: clamp(32px, 5.6vw, 58px); }
+  .lead-fig .tick { flex: none; margin-top: .5em; }
+  .lead-foot {
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid var(--ink);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+  /* Leader-line annotation carrying an actual value, not just a label. */
+  .xref {
+    color: var(--indigo);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    cursor: pointer;
+    background: none;
+    border-top: 0; border-left: 0; border-right: 0;
+    font: inherit;
+    padding: 0;
+  }
+  .xref:hover { background: #DCE3F0; }
+
+  .neg { color: var(--red); }
+
+  /* ---- Green-bar tables ------------------------------------------------ */
+
+  /* Any `overflow` value other than visible makes this element the scrollport, so a
+     sticky thead would stick to a 9000px box nobody scrolls and the column heads
+     would vanish after the first screen. Capping the height fixes that but spends the
+     whole-register-at-once raise and traps the wheel mid-page — bad in the primary
+     scene, a screen recording.
+     Instead: no scrollport at all at widths where the table already fits, so the
+     PAGE is the scrollport and the header sticks to the viewport while all 300 rows
+     stay in one continuous run. The horizontal scroller comes back only when the
+     table genuinely cannot fit. */
+  .scroller { overflow-x: visible; }
+  /* Threshold is set by the register's real floor, not a round number: nine
+     nowrap columns at 13px mono measure ~980px, and the sheet loses ~72px to body
+     padding, so anything under ~1050px overflows. Measured at 990px the page
+     scrolled horizontally — `overflow-x: visible` permits exactly that — so the
+     scroller has to reappear above the table's own width, with headroom for a
+     longer decline code than the current data happens to contain. */
+  @media (max-width: 1180px) {
+    .scroller { overflow-x: auto; }
+  }
+
+  table { border-collapse: collapse; width: 100%; }
+  /* Only the wide registers need a floor; A-5's three columns do not, and forcing
+     one on them scrolls a narrow table sideways on mobile for no reason. */
+  .t-wide { min-width: 800px; }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--paper);
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    padding: 7px clamp(8px, 1vw, 12px);
+    border-bottom: 1.5px solid var(--ink);
+    white-space: nowrap;
+  }
+  thead th:first-child { padding-left: clamp(16px, 2.6vw, 34px); }
+  thead th:last-child  { padding-right: clamp(16px, 2.6vw, 34px); }
+  /* Names the estimator and the axis in the header rather than burying either in a
+     code comment — the interval is the number a reader is most likely to check. */
+  .th-sub {
+    display: block;
+    margin-top: 1px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: .02em;
+    color: var(--ink-faint);
+  }
+
+  tbody td {
+    padding: 5px clamp(8px, 1vw, 12px);
+    border-bottom: 1px solid transparent;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  tbody td:first-child { padding-left: clamp(16px, 2.6vw, 34px); }
+  tbody td:last-child  { padding-right: clamp(16px, 2.6vw, 34px); }
+
+  /* Green bar: alternating printed stock, the reason ledgers stripe at all.
+     Grain rides in the same shorthand deliberately — declaring `background-image`
+     separately loses it, because a later `background` shorthand resets it to none,
+     which produced grained paper with grainless stripes: the exact opposite of one
+     continuous sheet. */
+  tbody tr:nth-child(odd) {
+    background: var(--grain), var(--bar);
+    background-blend-mode: multiply, normal;
+  }
+  tbody tr:nth-child(odd) td { border-top: 1px solid var(--bar-edge); border-bottom: 1px solid var(--bar-edge); }
+
+  tbody tr.pick { cursor: pointer; }
+  tbody tr.pick:hover { background: #F0E4C4; }
+  tbody tr.pick:hover td { border-color: #DCC98F; }
+  tbody tr.pick.is-open { background: #EBDCB2; }
+  tbody tr.pick.is-open td { border-color: #C9B173; }
+
+  /* The row's activation control. Visible as the auditor's worked mark rather
+     than a button chrome, but a real <button> underneath. */
+  .open-trace {
+    font: inherit;
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    color: var(--indigo);
+    background: none;
+    border: 1px solid transparent;
+    padding: 0 5px;
+    cursor: pointer;
+  }
+  .open-trace:hover { border-color: var(--indigo); }
+  tbody tr.pick.is-open .open-trace { border-color: var(--indigo); font-weight: 700; }
+
+  .vh {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dim { color: var(--ink-soft); }
+  .rule-id { color: var(--indigo); font-size: 12px; }
+
+  /* ---- Stamps and marks ------------------------------------------------ */
+
+  .stamp {
+    display: inline-block;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+    border: 1.5px solid currentColor;
+    line-height: 1.55;
+  }
+  /* Status colour is law — one hue per state, used for nothing else. */
+  .s-recovered    { color: var(--violet); }
+  .s-lost         { color: var(--red); }
+  .s-human_review { color: var(--red); }
+  .s-waiting      { color: var(--amber); }
+  .s-executed     { color: var(--indigo); }
+  .s-new,
+  .s-classified,
+  .s-decided      { color: var(--ink-soft); }
+
+  .stamp-lg {
+    font-size: 12.5px;
+    padding: 3px 12px;
+    border-width: 2px;
+    transform: rotate(-2.5deg);
+    transform-origin: left center;
+  }
+
+  /* ---- Compliance assertions ------------------------------------------ */
+
+  .assertions { padding: 0 clamp(16px, 2.6vw, 34px) 20px; margin: 0; list-style: none; }
+  .assertion {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--rule-faint);
+  }
+  .assertion:last-child { border-bottom: 0; }
+  .assertion-text { flex: 1; min-width: 0; }
+  .assertion-count { color: var(--ink-soft); font-size: 12px; }
+  .assertion.fail .assertion-text { color: var(--red); font-weight: 700; }
+
+  /* ---- Posterior bars -------------------------------------------------- */
+
+  .bar-cell { width: 190px; min-width: 120px; }
+  .bar-track {
+    position: relative;
+    height: 11px;
+    background: #E4E2D6;
+    border: 1px solid var(--rule-faint);
+  }
+  /* The track is an absolute 0–100% axis, not a max-normalised bar, so it needs a
+     scale mark to be readable as one — otherwise a reader has to guess whether the
+     span is measured against 100 or against the widest arm. */
+  .bar-track::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: -2px; bottom: -2px;
+    border-left: 1px dotted var(--rule);
+  }
+  /* The interval is the bar; the mean is a rule across it. A wide span reads as
+     thin evidence on its own, with no opacity trick and no legend needed. */
+  .bar-ci {
+    position: absolute;
+    top: 2px; bottom: 2px;
+    background: #B9C6DC;
+    border-left: 1px solid var(--indigo);
+    border-right: 1px solid var(--indigo);
+  }
+  .bar-mean {
+    position: absolute;
+    top: -1px; bottom: -1px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--indigo);
+  }
+
+  /* ---- Supporting schedule (drill-down) -------------------------------- */
+
+  .support {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(560px, 100%);
+    background: var(--paper);
+    border-left: 1px solid var(--ink);
+    box-shadow: -18px 0 40px -18px rgba(27,28,24,.35);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    /* The authored moment: a sheet pulled from the stack. Exponential ease-out
+       from an already-visible default — the panel is display:none until opened,
+       so nothing animates on first paint. */
+    animation: pull .42s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes pull {
+    from { transform: translateX(14px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .support { animation: none; }
+  }
+  .support[hidden] { display: none; }
+
+  .support-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .support-head h2 {
+    margin: 0;
+    font-size: 12.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  .support-meta { margin: 5px 0 0; color: var(--ink-soft); font-size: 12px; }
+  .support-body { overflow-y: auto; padding: 0 18px 24px; flex: 1; }
+
+  .btn-close {
+    margin-left: auto;
+    flex: none;
+    background: none;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    font: inherit;
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    padding: 2px 9px;
+    cursor: pointer;
+  }
+  .btn-close:hover { background: var(--ink); color: var(--paper); }
+
+  /* Trace entries: each stage cross-referenced to the rule it acted under. */
+  .trace { list-style: none; margin: 0; padding: 0; }
+  .trace li {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--rule-faint);
+  }
+  .trace-stage {
+    font-size: 11px;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding-top: 2px;
+  }
+  .trace-actor {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .trace-detail { margin: 0; font-size: 12.5px; }
+  .trace-detail dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1px 10px;
+  }
+  .trace-detail dt { color: var(--ink-soft); font-size: 12px; }
+  .trace-detail dd { margin: 0; font-size: 12px; word-break: break-word; }
+
+  /* ---- Utility states -------------------------------------------------- */
+
+  .msg {
+    padding: 22px clamp(16px, 2.6vw, 34px) 26px;
+    color: var(--ink-soft);
+    font-size: 13px;
+    max-width: 74ch;
+  }
+  .msg b { color: var(--ink); display: block; margin-bottom: 5px; letter-spacing: .06em; text-transform: uppercase; font-size: 11.5px; }
+  .msg.err b { color: var(--red); }
+  .msg code {
+    background: #E7E5D8;
+    border: 1px solid var(--rule-faint);
+    padding: 1px 5px;
+    font-size: 12.5px;
+  }
+
+  .skeleton {
+    height: 11px;
+    background: linear-gradient(90deg, #E4E2D6 0%, #EFEDE2 50%, #E4E2D6 100%);
+    background-size: 200% 100%;
+    animation: sweep 1.3s linear infinite;
+  }
+  @keyframes sweep { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+  }
+
+  .foot {
+    max-width: var(--sheet-max);
+    margin: 10px auto 0;
+    color: var(--ink-faint);
+    font-size: 11px;
+    letter-spacing: .05em;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 720px) {
+    .wp-head { grid-template-columns: 1fr; }
+    .wp-index { min-width: 0; width: 100%; }
+    .head-stamp { grid-column: 1; justify-self: start; }
+    /* The explicit three-column track has to be undone by hand. The earlier
+       auto-fit version collapsed on its own; a fixed `1.25fr 1fr 1fr` does not,
+       and three ~105px bays cannot hold a 32px figure and a lakh-grouped rupee
+       amount side by side. */
+    .lead { grid-template-columns: 1fr; }
+    .lead-item { padding-right: 0; }
+    .lead-item + .lead-item { padding-left: 0; border-left: 0; border-top: 1px solid var(--rule-faint); margin-top: 14px; padding-top: 12px; }
+    .trace li { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+
+<div class="sheet">
+  <header class="wp-head">
+    <div>
+      <h1 class="wp-title">Recovery Working Papers</h1>
+      <p class="wp-sub">
+        Failed-payment recovery agent. Compliance is deterministic; only the choice
+        of slot within the compliant set is learned. Figures below are
+        <b>traced to source</b> — select any cross-reference to open its schedule.
+      </p>
+    </div>
+    <dl class="wp-index">
+      <!-- The file's own address. It cannot be A-1, which is the lead schedule
+           inside it — in a world built on references resolving, two things may
+           not share one address. -->
+      <dt>W/P Ref</dt><dd>RCV-01</dd>
+      <dt>Prepared</dt><dd id="ix-prepared">agent</dd>
+      <dt>Basis</dt><dd id="ix-basis">synthetic</dd>
+      <!-- Not "Reviewed": no second party signed this off, and claiming one on a
+           page whose entire argument is honest measurement would be the exact
+           failure it warns about. This states what actually ran. -->
+      <dt>Assertions</dt><dd id="ix-assertions">—</dd>
+    </dl>
+    <div id="head-stamp" class="head-stamp"></div>
+  </header>
+
+  <section class="schedule" id="sch-lead">
+    <div class="sch-head">
+      <span class="sch-ref">A-1</span>
+      <h2 class="sch-name">Lead schedule — recovery performance</h2>
+      <span class="sch-note" id="lead-note"></span>
+    </div>
+    <div class="lead" id="lead"></div>
+  </section>
+
+  <section class="schedule" id="sch-register">
+    <div class="sch-head">
+      <span class="sch-ref">A-2</span>
+      <h2 class="sch-name">Register of failed payments</h2>
+      <span class="sch-note" id="register-note"></span>
+    </div>
+    <div class="scroller" id="register"></div>
+  </section>
+
+  <section class="schedule" id="sch-compliance">
+    <div class="sch-head">
+      <span class="sch-ref">A-3</span>
+      <h2 class="sch-name">Compliance assertions</h2>
+      <span class="sch-note">measured on executed actions, not inferred from status</span>
+    </div>
+    <div id="compliance"></div>
+  </section>
+
+  <section class="schedule" id="sch-bandit">
+    <div class="sch-head">
+      <span class="sch-ref">A-4</span>
+      <h2 class="sch-name">Learned retry-slot posteriors</h2>
+      <span class="sch-note">Thompson sampling · win rate by time-of-day</span>
+    </div>
+    <div class="scroller" id="bandit"></div>
+  </section>
+
+  <section class="schedule" id="sch-exceptions">
+    <div class="sch-head">
+      <span class="sch-ref">A-5</span>
+      <h2 class="sch-name">Schedule of exceptions — payments stopped</h2>
+      <span class="sch-note">every stop, with the rule it was stopped under</span>
+    </div>
+    <div class="scroller" id="exceptions"></div>
+  </section>
+
+  <section class="schedule" id="sch-rules">
+    <div class="sch-head">
+      <span class="sch-ref">A-6</span>
+      <h2 class="sch-name">Compliance rules applied</h2>
+      <span class="sch-note">every rule that shaped an action, not only the stopping ones</span>
+    </div>
+    <div class="scroller" id="rules"></div>
+  </section>
+</div>
+
+<p class="foot">
+  <span>Synthetic data. Not real Razorpay traffic, and no figure here is a claim about production performance.</span>
+</p>
+
+<aside class="support" id="support" hidden aria-labelledby="support-title">
+  <div class="support-head">
+    <div>
+      <h2 id="support-title">B-1 · Supporting schedule</h2>
+      <p class="support-meta" id="support-meta"></p>
+    </div>
+    <button class="btn-close" id="support-close" type="button">Close</button>
+  </div>
+  <div class="support-body" id="support-body"></div>
+</aside>
+
+<script>
+/* Authored marks. The auditor's tick system is drawn, never a unicode glyph:
+   check = traced to source, caret = footed (added down), circle = confirmed.
+   Struck in graphite, not red — these record work done. Red is reserved for
+   exceptions, and a red mark beside "4/4 compliance" would read as a failure. */
+const MARK = {
+  traced: `<svg class="tick" width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><title>traced to source</title><path d="M1.5 7.2 4.4 10 11.3 2.4" fill="none" stroke="var(--graphite)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  footed: `<svg class="tick" width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><title>footed</title><path d="M2 9.6 6.5 2.6 11 9.6" fill="none" stroke="var(--graphite)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  confirmed: `<svg class="tick" width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><title>confirmed</title><circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="var(--graphite)" stroke-width="1.6"/></svg>`,
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* Indian digit grouping — this register is denominated in rupees, so lakhs are
+   the correct reading, not thousands. */
+const inr = (paise) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
+const pct = (x) => (x === null || x === undefined) ? "—" : (x * 100).toFixed(1) + "%";
+/* A lift is a signed quantity — an unsigned "53.5%" reads as a rate, not a delta. */
+const signedPct = (x) => (x === null || x === undefined)
+  ? "—" : (x >= 0 ? "+" : "−") + (Math.abs(x) * 100).toFixed(1) + "%";
+
+async function getJSON(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(path + " returned " + res.status);
+  return res.json();
+}
+
+function skeleton(rows) {
+  return `<div class="msg">${Array.from({ length: rows }, (_, i) =>
+    `<div class="skeleton" style="width:${88 - i * 11}%;margin-bottom:9px"></div>`).join("")}</div>`;
+}
+
+function emptyState(what) {
+  return `<div class="msg"><b>Nothing recorded yet</b>
+    No ${esc(what)} in this ledger. Seed a batch to populate it:
+    <code>python -m scripts.seed_synthetic_data 300</code></div>`;
+}
+
+function errorState(err) {
+  return `<div class="msg err"><b>Could not read the ledger</b>
+    ${esc(err.message)}. The API may not be running — start it with
+    <code>uvicorn app.main:app --reload</code> and reload this page.</div>`;
+}
+
+/* ---- A-1 ------------------------------------------------------------- */
+
+function renderLead(o) {
+  const e = o.economics;
+  const lift = o.causal_lift;
+  const items = [
+    {
+      label: "Causal recovery lift",
+      value: signedPct(lift),
+      /* Takes the dominant scale, and sits in the wide first bay. Of the three it
+         is the one that cannot be produced without a holdout, so it is the claim
+         a judge should meet first. */
+      dominant: true,
+      mark: lift === null ? "" : MARK.traced,
+      foot: `intervention ${pct(o.intervention.rate)} less holdout ${pct(o.control.rate)}`,
+      ref: "A-2",
+      negative: lift !== null && lift < 0,
+    },
+    {
+      label: "Net economic value",
+      value: inr(e.net_paise),
+      mark: MARK.footed,
+      foot: `${inr(e.gross_recovered_paise)} recovered, less ${e.contacts} contacts and ${e.churned_customers} lost customers`,
+      ref: "A-5",
+      negative: e.net_paise < 0,
+    },
+    {
+      label: "Compliance assertions",
+      value: null,   // filled by renderCompliance once counts are known
+      mark: MARK.confirmed,
+      foot: "no rule breached by any executed action",
+      ref: "A-3",
+      id: "lead-compliance",
+    },
+  ];
+
+  $("lead").innerHTML = items.map((it) => `
+    <div class="lead-item${it.dominant ? " lead-item--lead" : ""}">
+      <div class="lead-label">${esc(it.label)}</div>
+      <div class="lead-fig${it.negative ? " neg" : ""}"${it.id ? ` id="${it.id}"` : ""}>
+        ${it.mark}<span>${it.value === null ? "—" : esc(it.value)}</span>
+      </div>
+      <div class="lead-foot">
+        ${esc(it.foot)} ·
+        <button class="xref" data-goto="sch-${it.ref === "A-2" ? "register" : it.ref === "A-3" ? "compliance" : "exceptions"}">traced to ${esc(it.ref)}</button>
+      </div>
+    </div>`).join("");
+
+  $("lead-note").textContent =
+    `${o.intervention.total} treated · ${o.control.total} holdout · ${o.intervention.resolved + o.control.resolved} resolved`;
+
+  const totalPayments = o.intervention.total + o.control.total;
+  /* Says what the reader can actually see. The register is uncapped and runs in one
+     continuous scroll, so "whole register" is a true claim rather than a label on a
+     box showing sixteen rows. */
+  $("register-note").textContent = `all ${totalPayments} payments, no pagination`;
+}
+
+/* ---- A-2 ------------------------------------------------------------- */
+
+const RAIL = { card: "Card", upi_autopay: "UPI Autopay", enach: "eNACH" };
+// Three regimes share this register, and they are not interchangeable: only the first
+// is a debt with a mandate behind it.
+const SOURCE = {
+  failed_payment: "payment",
+  abandoned_checkout: "checkout",
+  overdue_invoice: "invoice",
+};
+
+function renderRegister(payments) {
+  if (!payments.length) { $("register").innerHTML = emptyState("payments"); return; }
+
+  /* Rows stay rows. A `role="button"` on a <tr> strips the table semantics screen
+     readers navigate by, and `aria-selected` is not valid on button — so the
+     activation lives on a real control in the last cell instead. */
+  $("register").innerHTML = `
+    <table class="t-wide">
+      <thead><tr>
+        <th>No.</th><th>Payment</th><th>Source</th><th>Rail</th><th class="num">Amount</th>
+        <th class="num">Att.</th><th>Decline code</th><th>Status</th>
+        <th>Sample</th><th><span class="vh">Trace</span></th>
+      </tr></thead>
+      <tbody>${payments.map((p, i) => `
+        <tr class="pick" data-id="${esc(p.id)}">
+          <td class="dim">${String(i + 1).padStart(3, "0")}</td>
+          <td>${esc(p.razorpay_payment_id)}</td>
+          <td class="dim">${esc(SOURCE[p.source] || p.source || "payment")}</td>
+          <td class="dim">${esc(RAIL[p.rail] || p.rail)}</td>
+          <td class="num">${inr(p.amount_paise)}</td>
+          <td class="num dim">${p.retry_count}</td>
+          <td class="rule-id">${esc(p.error_code)}</td>
+          <td><span class="stamp s-${esc(p.status)}">${esc(p.status.replace("_", " "))}</span></td>
+          <td class="dim">${p.control_group ? "holdout" : "treated"}</td>
+          <td><button class="open-trace" type="button" data-id="${esc(p.id)}"
+                aria-expanded="false" aria-controls="support"
+                aria-label="Supporting schedule for ${esc(p.razorpay_payment_id)}">trace</button></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+/* ---- A-3 ------------------------------------------------------------- */
+
+function renderCompliance(checks) {
+  if (!checks.length) { $("compliance").innerHTML = emptyState("assertions"); return; }
+
+  $("compliance").innerHTML = `<ul class="assertions">${checks.map((c) => `
+    <li class="assertion${c.pass ? "" : " fail"}">
+      <span class="stamp ${c.pass ? "s-recovered" : "s-lost"}">${c.pass ? "pass" : "fail"}</span>
+      <span class="assertion-text">${esc(c.check)}</span>
+      <span class="assertion-count">${c.violations} breach${c.violations === 1 ? "" : "es"}</span>
+    </li>`).join("")}</ul>`;
+
+  const passed = checks.filter((c) => c.pass).length;
+  const clean = passed === checks.length;
+  const fig = $("lead-compliance");
+  if (fig) {
+    fig.querySelector("span").textContent = `${passed}/${checks.length}`;
+    fig.classList.toggle("neg", !clean);
+  }
+  /* States what actually ran. No second party signed this off, so it does not say
+     "reviewed" — on a page arguing for honest measurement, claiming a review that
+     never happened would be the exact failure it warns about. */
+  $("ix-assertions").textContent = clean ? `${passed}/${checks.length} clean` : `${checks.length - passed} failed`;
+  $("head-stamp").innerHTML = clean
+    ? `<span class="stamp stamp-lg s-recovered">${passed}/${checks.length} assertions · no exceptions</span>`
+    : `<span class="stamp stamp-lg s-lost">${checks.length - passed} assertion${checks.length - passed === 1 ? "" : "s"} failed</span>`;
+}
+
+/* ---- A-4 ------------------------------------------------------------- */
+
+function renderBandit(arms) {
+  if (!arms.length) { $("bandit").innerHTML = emptyState("bandit arms pulled"); return; }
+
+  /* Plot the credible interval, not just its midpoint. Two arms can share a mean at
+     3 pulls and 30 and warrant completely different confidence, and hiding that
+     under one bar is a point estimate wearing the word "posterior". The interval
+     width also replaces an opacity-only "low evidence" cue, which encoded meaning
+     by nothing but transparency and no legend. */
+  $("bandit").innerHTML = `
+    <table class="t-wide">
+      <thead><tr>
+        <th>Rail</th><th>Category</th><th>Slot (UTC)</th>
+        <th class="num">Pulls</th><th class="num">Win rate</th>
+        <th class="num">95% interval<span class="th-sub">Wilson score</span></th>
+        <th>Posterior<span class="th-sub">0–100%, dotted rule at 50%</span></th>
+      </tr></thead>
+      <tbody>${arms.map((a) => `
+        <tr>
+          <td class="dim">${esc(RAIL[a.rail] || a.rail)}</td>
+          <td class="dim">${esc(a.category.replace("_", " "))}</td>
+          <td>${esc(a.slot)}</td>
+          <td class="num dim">${a.pulls}</td>
+          <td class="num">${pct(a.posterior_mean)}</td>
+          <td class="num dim">${pct(a.ci_low)}–${pct(a.ci_high)}</td>
+          <td class="bar-cell">
+            <div class="bar-track" role="img"
+                 aria-label="win rate ${pct(a.posterior_mean)}, 95% credible interval ${pct(a.ci_low)} to ${pct(a.ci_high)}, ${a.pulls} pulls">
+              <div class="bar-ci" style="left:${(a.ci_low * 100).toFixed(1)}%;right:${(100 - a.ci_high * 100).toFixed(1)}%"></div>
+              <div class="bar-mean" style="left:${(a.posterior_mean * 100).toFixed(1)}%"></div>
+            </div>
+          </td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+/* ---- A-5 ------------------------------------------------------------- */
+
+// Plain-English gloss for the rules a reader would otherwise have to look up. These
+// are the rules that carry the India-specific reasoning, so leaving them as bare
+// identifiers hides the part of the system worth reading.
+const RULE_NOTE = {
+  "COMP-001-consent-withdrawn": "mandate revoked — all contact stops",
+  "COMP-002-risk-or-unclassified": "risk block or unclassified — human only",
+  "COMP-003-instrument-dead-needs-fresh-auth": "instrument dead, needs fresh authorisation",
+  "COMP-004-attempt-cap": "attempt cap reached",
+  "COMP-005-afa-required-above-ceiling": "above the AFA ceiling — re-auth required",
+  "COMP-006-compliant-retry-window": "retry inside cooldown + pre-debit notice",
+  "COMP-007-gateway-owns-card-retry": "Razorpay is retrying; ours would double-attempt",
+  "COMP-008-rbi-contact-window": "deferred to 08:00–19:00 IST contact window",
+  "COMP-009-gateway-exhausted-merchant-takes-over": "gateway gave up — merchant recovery begins",
+  "COMP-010-source-contact-budget": "this source's contact budget is spent",
+  "COMP-011-checkout-nudge-not-a-debt": "abandoned cart — one nudge, no dunning",
+  "COMP-012-msme-receivable": "MSMED s.16 interest accruing; s.43B(h) exposure",
+};
+
+function renderRules(rows) {
+  if (!rows.length) { $("rules").innerHTML = emptyState("rules applied"); return; }
+
+  $("rules").innerHTML = `
+    <table class="t-wide">
+      <thead><tr>
+        <th>Rule</th><th>What it means</th><th>Action taken</th><th class="num">Decisions</th>
+      </tr></thead>
+      <tbody>${rows.map((r) => `
+        <tr>
+          <td class="rule-id">${esc(r.rule)}</td>
+          <td class="dim">${esc(RULE_NOTE[r.rule] || "")}</td>
+          <td>${esc(r.action.replace(/_/g, " "))}</td>
+          <td class="num">${r.count}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+function renderExceptions(rows) {
+  if (!rows.length) { $("exceptions").innerHTML = emptyState("stopped payments"); return; }
+
+  $("exceptions").innerHTML = `
+    <table>
+      <thead><tr><th>Rule</th><th>Reason</th><th class="num">Payments</th></tr></thead>
+
+      <tbody>${rows.map((r) => `
+        <tr>
+          <td class="rule-id">${esc(r.policy_rule_id)}</td>
+          <td>${esc(r.reason.replace(/_/g, " "))}</td>
+          <td class="num">${r.count}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+/* ---- B-1 supporting schedule ----------------------------------------- */
+
+let lastFocused = null;
+
+function clearOpenRows() {
+  document.querySelectorAll("tr.pick.is-open").forEach((r) => {
+    r.classList.remove("is-open");
+    r.querySelector(".open-trace")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+async function openTrace(row) {
+  const id = row.dataset.id;
+  const trigger = row.querySelector(".open-trace");
+  lastFocused = trigger || row;
+
+  clearOpenRows();
+  row.classList.add("is-open");
+  trigger?.setAttribute("aria-expanded", "true");
+
+  const panel = $("support");
+  panel.hidden = false;
+  $("support-meta").textContent = row.children[1].textContent;
+  $("support-body").innerHTML = skeleton(5);
+  $("support-close").focus();
+
+  try {
+    const trace = await getJSON(`/payments/${encodeURIComponent(id)}/audit`);
+    if (!trace.length) {
+      $("support-body").innerHTML = `<div class="msg"><b>No trace</b>Nothing was recorded against this payment.</div>`;
+      return;
+    }
+    $("support-body").innerHTML = `<ol class="trace">${trace.map((t) => `
+      <li>
+        <div class="trace-stage">${esc(t.stage)}<span class="trace-actor">${esc(t.actor)}</span></div>
+        <div class="trace-detail"><dl>${Object.entries(t.detail).map(([k, v]) => `
+          <dt>${esc(k.replace(/_/g, " "))}</dt>
+          <dd${/rule|arm|clause/.test(k) ? ' class="rule-id"' : ""}>${esc(
+            v !== null && typeof v === "object" ? JSON.stringify(v) : v)}</dd>`).join("")}
+        </dl></div>
+      </li>`).join("")}</ol>`;
+  } catch (err) {
+    $("support-body").innerHTML = errorState(err);
+  }
+}
+
+function closeTrace() {
+  $("support").hidden = true;
+  clearOpenRows();
+  if (lastFocused) { lastFocused.focus(); lastFocused = null; }
+}
+
+/* ---- wiring ----------------------------------------------------------- */
+
+document.addEventListener("click", (e) => {
+  const goto = e.target.closest("[data-goto]");
+  if (goto) {
+    $(goto.dataset.goto).scrollIntoView({
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+    return;
+  }
+  if (e.target.closest("#support-close")) { closeTrace(); return; }
+  /* The button handles keyboard activation natively; the row click is a
+     convenience shortcut layered on top of it, not the accessible path. */
+  const row = e.target.closest("tr.pick");
+  if (row) openTrace(row);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("support").hidden) closeTrace();
+});
+
+async function boot() {
+  $("register").innerHTML = skeleton(6);
+  $("compliance").innerHTML = skeleton(4);
+  $("bandit").innerHTML = skeleton(4);
+  $("exceptions").innerHTML = skeleton(2);
+  $("rules").innerHTML = skeleton(3);
+
+  const results = await Promise.allSettled([
+    getJSON("/metrics/overview"),
+    getJSON("/payments"),
+    getJSON("/metrics/compliance"),
+    getJSON("/metrics/bandit"),
+    getJSON("/metrics/stop-reasons"),
+    getJSON("/metrics/rules-fired"),
+  ]);
+  const [overview, payments, compliance, bandit, stops, rules] = results;
+
+  if (overview.status === "fulfilled") renderLead(overview.value);
+  else $("lead").innerHTML = errorState(overview.reason);
+
+  if (payments.status === "fulfilled") renderRegister(payments.value);
+  else $("register").innerHTML = errorState(payments.reason);
+
+  if (compliance.status === "fulfilled") renderCompliance(compliance.value);
+  else $("compliance").innerHTML = errorState(compliance.reason);
+
+  if (bandit.status === "fulfilled") renderBandit(bandit.value);
+  else $("bandit").innerHTML = errorState(bandit.reason);
+
+  if (stops.status === "fulfilled") renderExceptions(stops.value);
+  else $("exceptions").innerHTML = errorState(stops.reason);
+
+  if (rules.status === "fulfilled") renderRules(rules.value);
+  else $("rules").innerHTML = errorState(rules.reason);
+}
+
+boot();
+</script>
