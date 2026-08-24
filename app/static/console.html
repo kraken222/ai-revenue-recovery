@@ -1,0 +1,526 @@
+<!--
+THESIS: The register at / proves the measurement. This proves the machine. It is the
+same working-papers world, but a live one: decisions arrive as they happen, each one
+showing the chain that produced it, and the cases the agent hands to a person land in
+a queue you can actually work.
+OWN-WORLD: Inherited from DESIGN.md — grained green-bar stock, mono figures, graphite
+marks, red for exceptions only, indigo for cross-references, violet for the stamp.
+Status colour is law: one hue per state.
+STORY: A viewer sees rows land in real time, opens one, reads classify -> compliance ->
+guardrail -> bandit -> EV -> execute, and understands the agent is reasoning rather
+than pattern-matching.
+FIRST VIEWPORT: Pulse strip across the top; the stream filling the left two-thirds
+with newest at the top; the human queue on the right, worked longest-waiting first.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recovery Agent Console</title>
+<style>
+  :root {
+    --paper:      #F6F5EE;
+    --bar:        #D6E4CD;
+    --bar-edge:   #BACFAF;
+    --rule:       #9FB295;
+    --rule-faint: #C8CCBE;
+
+    --ink:        #1B1C18;
+    --ink-soft:   #5B5E52;
+    --ink-faint:  #5F6257;
+
+    /* Status colour is law: one hue per meaning, used nowhere else. */
+    --red:        #B3271E;
+    --graphite:   #4A4E45;
+    --indigo:     #26467F;
+    --violet:     #57337E;
+    --amber:      #8A5B12;
+
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: #E7E5DA; color-scheme: light; }
+
+  body {
+    margin: 0;
+    padding: clamp(10px, 2vw, 26px);
+    background: radial-gradient(120% 80% at 50% 0%, #EFEDE2 0%, #E2E0D4 60%, #D8D6C9 100%);
+    color: var(--ink);
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: #F3D9AE; color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--paper); }
+
+  .sheet {
+    max-width: 1560px;
+    margin: 0 auto;
+    background: var(--paper) var(--grain);
+    background-blend-mode: multiply;
+    box-shadow: 0 1px 1px rgba(27,28,24,.16), 0 2px 5px -1px rgba(27,28,24,.14),
+                0 14px 30px -14px rgba(27,28,24,.30);
+    padding: 2px 0 8px;
+  }
+
+  /* ---- masthead + pulse ---- */
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 28px;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 18px clamp(14px, 2vw, 26px) 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(15px, 2vw, 21px);
+    font-weight: 700;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+  }
+  .sub { color: var(--ink-soft); font-size: 12px; margin: 4px 0 0; }
+  .sub a { color: var(--indigo); }
+
+  .pulse { display: flex; gap: 1px; background: var(--rule-faint); border: 1px solid var(--rule-faint); }
+  .pulse div { background: var(--paper); padding: 6px 13px; text-align: right; min-width: 82px; }
+  .pulse dt {
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 0;
+  }
+  .pulse dd { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.15; }
+
+  .live {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .dot { width: 7px; height: 7px; background: var(--violet); border-radius: 50%; }
+  .live.paused .dot { background: var(--ink-faint); }
+  @media (prefers-reduced-motion: no-preference) {
+    .live:not(.paused) .dot { animation: beat 2s ease-in-out infinite; }
+  }
+  @keyframes beat { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+
+  /* ---- layout ---- */
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr);
+    gap: 1px;
+    background: var(--rule-faint);
+  }
+  .col { background: var(--paper); min-width: 0; }
+
+  .col-head {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 11px clamp(14px, 2vw, 26px) 8px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .ref {
+    font-weight: 700; letter-spacing: .09em; font-size: 11.5px;
+    border: 1px solid var(--ink); padding: 1px 7px; flex: none;
+  }
+  .col-head h2 {
+    margin: 0; font-size: 13px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .col-note { margin-left: auto; color: var(--ink-faint); font-size: 11.5px; }
+
+  .scroll { max-height: min(72vh, 760px); overflow-y: auto; overscroll-behavior: contain; }
+
+  /* ---- stream ---- */
+
+  .row {
+    display: grid;
+    grid-template-columns: 62px 118px 96px 1fr;
+    gap: 10px;
+    padding: 5px clamp(14px, 2vw, 26px);
+    border-bottom: 1px solid transparent;
+    cursor: pointer;
+    align-items: baseline;
+  }
+  .row:nth-child(odd) {
+    background: var(--grain), var(--bar);
+    background-blend-mode: multiply, normal;
+    border-top: 1px solid var(--bar-edge);
+    border-bottom: 1px solid var(--bar-edge);
+  }
+  .row:hover { background: #F0E4C4; }
+  .row.open { background: #EBDCB2; }
+  .row.fresh { animation: land .5s cubic-bezier(.16,1,.3,1); }
+  @media (prefers-reduced-motion: reduce) { .row.fresh { animation: none; } }
+  @keyframes land { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; } }
+
+  .r-id { color: var(--ink-faint); font-size: 11.5px; }
+  .r-pay { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .r-stage { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; }
+  .r-what { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+
+  /* One hue per stage, so the shape of a decision is readable down the column. */
+  .s-classification { color: var(--graphite); }
+  .s-compliance     { color: var(--indigo); }
+  .s-guardrail      { color: var(--indigo); }
+  .s-escalation     { color: var(--amber); }
+  .s-bandit         { color: var(--violet); }
+  .s-economics      { color: var(--violet); }
+  .s-decision       { color: var(--ink); font-weight: 700; }
+  .s-execution      { color: var(--graphite); }
+  .s-promise        { color: var(--amber); }
+  .s-operator       { color: var(--red); font-weight: 700; }
+  .s-ingestion      { color: var(--ink-faint); }
+
+  .trace { padding: 0 clamp(14px, 2vw, 26px) 14px; background: #F1EFE4; }
+  .trace dl {
+    margin: 0; display: grid; grid-template-columns: max-content 1fr;
+    gap: 1px 12px; font-size: 12px;
+  }
+  .trace dt { color: var(--ink-soft); }
+  .trace dd { margin: 0; word-break: break-word; }
+  .trace .k-rule, .trace .k-arm { color: var(--indigo); }
+
+  /* ---- queue ---- */
+
+  .q-item { padding: 11px clamp(14px, 2vw, 26px); border-bottom: 1px solid var(--rule-faint); }
+  .q-top { display: flex; gap: 10px; align-items: baseline; }
+  .q-amt { margin-left: auto; font-weight: 700; }
+  .q-why { color: var(--red); font-size: 12px; margin: 3px 0 0; }
+  .q-meta { color: var(--ink-faint); font-size: 11.5px; margin: 2px 0 0; }
+  .q-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  button {
+    font: inherit; font-size: 11.5px; letter-spacing: .05em;
+    background: none; border: 1px solid var(--ink-soft); color: var(--ink);
+    padding: 2px 9px; cursor: pointer;
+  }
+  button:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.danger { border-color: var(--red); color: var(--red); }
+  button.danger:hover { background: var(--red); color: var(--paper); }
+  button[disabled] { opacity: .45; cursor: not-allowed; }
+  button[disabled]:hover { background: none; color: var(--ink); border-color: var(--ink-soft); }
+
+  .stamp {
+    display: inline-block; padding: 0 6px; font-size: 11px; font-weight: 700;
+    letter-spacing: .09em; text-transform: uppercase;
+    border: 1.5px solid currentColor; line-height: 1.55;
+  }
+  .st-human_review { color: var(--red); }
+  .st-recovered    { color: var(--violet); }
+  .st-lost         { color: var(--red); }
+  .st-waiting      { color: var(--amber); }
+  .st-executed     { color: var(--indigo); }
+
+  .msg { padding: 20px clamp(14px, 2vw, 26px); color: var(--ink-soft); font-size: 12.5px; }
+  .msg b { display: block; text-transform: uppercase; letter-spacing: .07em; font-size: 11.5px; color: var(--ink); margin-bottom: 4px; }
+  .msg.err b { color: var(--red); }
+  .msg code { background: #E7E5D8; border: 1px solid var(--rule-faint); padding: 1px 5px; }
+
+  /* A stamped slip laid on the sheet: it commits to the defined edge rather than
+     pairing a hairline with a wide diffuse glow, which is the generated-UI tell. */
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    background: var(--paper); border: 1.5px solid var(--ink);
+    padding: 9px 16px; font-size: 12.5px; z-index: 40;
+    box-shadow: 2px 3px 0 rgba(27,28,24,.14);
+    max-width: min(560px, 92vw);
+  }
+  .toast.bad { border-color: var(--red); color: var(--red); }
+  .toast[hidden] { display: none; }
+
+  .vh {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 52px 1fr 92px; }
+    .row .r-what { display: none; }
+  }
+</style>
+
+<div class="sheet">
+  <div class="head">
+    <div>
+      <h1>Recovery Agent Console</h1>
+      <p class="sub">
+        Live decision stream. Every row is one stage of the agent's reasoning; select a
+        row to read the whole chain. &nbsp;<a href="/">Working papers &rarr;</a>
+      </p>
+    </div>
+    <dl class="pulse" id="pulse"></dl>
+  </div>
+
+  <div class="cols">
+    <section class="col">
+      <div class="col-head">
+        <span class="ref">B-1</span>
+        <h2>Decision stream</h2>
+        <span class="col-note" id="live-note">
+          <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting</span></span>
+        </span>
+      </div>
+      <div class="scroll" id="stream"><div class="msg">Loading&hellip;</div></div>
+    </section>
+
+    <section class="col">
+      <div class="col-head">
+        <span class="ref">B-2</span>
+        <h2>Awaiting a person</h2>
+        <span class="col-note" id="queue-note"></span>
+      </div>
+      <div class="scroll" id="queue"><div class="msg">Loading&hellip;</div></div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const inr = (p) => {
+  const n = String(Math.round(p / 100));
+  if (n.length <= 3) return "Rs." + n;
+  return "Rs." + n.slice(0, -3).replace(/(\d)(?=(\d\d)+$)/g, "$1,") + "," + n.slice(-3);
+};
+
+let watermark = null;      // highest event id on screen; the tail cursor
+let openRow = null;
+let pollTimer = null;
+let failures = 0;
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `${path} returned ${res.status}`);
+  }
+  return res.json();
+}
+
+function toast(text, bad = false) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.toggle("bad", bad);
+  el.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.hidden = true; }, 5000);
+}
+
+function setLive(state, text) {
+  $("live").classList.toggle("paused", state !== "live");
+  $("live-text").textContent = text;
+}
+
+/* ---- stream ---- */
+
+// One line summarising what this stage decided, so the row is readable without
+// opening it. Each stage carries different evidence, so each gets its own reading.
+function summarise(ev) {
+  const d = ev.detail || {};
+  switch (ev.stage) {
+    case "classification": return `${d.category ?? "?"} (${d.source ?? "?"})`;
+    case "compliance":     return `${d.policy_rule_id ?? ""} -> ${(d.allowed_actions || []).join(", ")}`;
+    case "guardrail":      return d.blocked_reason ? `blocked: ${d.blocked_reason}` : (d.allowed_actions || []).join(", ");
+    case "escalation":     return `rung ${d.rung} ${d.name ?? ""} (${d.reached_because ?? ""})`;
+    case "bandit":         return d.reward !== undefined
+                                  ? `reward ${d.reward} -> ${d.arm_key}`
+                                  : `slot ${String(d.tod_bucket).padStart(2, "0")}:00 · posterior ${((d.posterior_mean ?? 0) * 100).toFixed(0)}%`;
+    case "economics":      return `EV ${inr(d.expected_value_paise ?? 0)} · p=${((d.p_recovery ?? 0) * 100).toFixed(1)}% · ${d.verdict ?? ""}`;
+    case "decision":       return `${d.final_action ?? ""}${d.control_group ? " (holdout)" : ""}`;
+    case "execution":      return d.note ?? `${d.action ?? ""} ${d.outcome ?? ""}`.trim();
+    case "promise":        return d.reason ?? d.resolved ?? "promise";
+    case "operator":       return `${d.refused ? "REFUSED " : ""}${d.outcome} by ${d.operator}`;
+    case "ingestion":      return `${d.rail ?? ""} ${d.error_code ?? ""}`.trim() || "event received";
+    default:               return "";
+  }
+}
+
+function rowHTML(ev, fresh) {
+  return `
+    <div class="row${fresh ? " fresh" : ""}" data-id="${ev.id}" data-pay="${esc(ev.payment.id)}"
+         role="button" tabindex="0"
+         aria-label="${esc(ev.stage)} for ${esc(ev.payment.razorpay_payment_id)}">
+      <span class="r-id">${ev.id}</span>
+      <span class="r-pay">${esc(ev.payment.razorpay_payment_id)}</span>
+      <span class="r-stage s-${esc(ev.stage)}">${esc(ev.stage)}</span>
+      <span class="r-what">${esc(summarise(ev))}</span>
+    </div>`;
+}
+
+function renderTrace(events) {
+  const rows = events.map((e) => {
+    const entries = Object.entries(e.detail || {}).map(([k, v]) => {
+      const cls = /rule|arm|clause/.test(k) ? "k-rule" : "";
+      const val = v !== null && typeof v === "object" ? JSON.stringify(v) : v;
+      return `<dt>${esc(k.replace(/_/g, " "))}</dt><dd class="${cls}">${esc(val)}</dd>`;
+    }).join("");
+    return `<dt style="grid-column:1/-1;padding-top:6px"><b class="s-${esc(e.stage)}">${esc(e.stage)}</b> <span style="color:var(--ink-faint)">${esc(e.actor)}</span></dt>
+            <dd style="grid-column:1/-1"><dl>${entries}</dl></dd>`;
+  }).join("");
+  return `<div class="trace"><dl>${rows}</dl></div>`;
+}
+
+async function toggleTrace(row) {
+  document.querySelectorAll(".trace").forEach((t) => t.remove());
+  document.querySelectorAll(".row.open").forEach((r) => r.classList.remove("open"));
+
+  if (openRow === row.dataset.id) { openRow = null; return; }
+  openRow = row.dataset.id;
+  row.classList.add("open");
+
+  const holder = document.createElement("div");
+  holder.innerHTML = `<div class="msg">Reading trace&hellip;</div>`;
+  row.after(holder.firstElementChild);
+
+  try {
+    const trace = await api(`/payments/${encodeURIComponent(row.dataset.pay)}/audit`);
+    row.nextElementSibling.outerHTML = renderTrace(trace);
+  } catch (err) {
+    row.nextElementSibling.outerHTML =
+      `<div class="trace"><div class="msg err"><b>Could not read the trace</b>${esc(err.message)}</div></div>`;
+  }
+}
+
+async function pump() {
+  try {
+    if (watermark === null) {
+      const first = await api("/agent/activity?limit=80");
+      $("stream").innerHTML = first.events.length
+        ? first.events.map((e) => rowHTML(e, false)).join("")
+        : `<div class="msg"><b>Nothing yet</b>The agent has processed no events. Seed a batch:
+           <code>python -m scripts.seed_synthetic_data 300</code></div>`;
+      watermark = first.events[0]?.id ?? 0;
+    } else {
+      const fresh = await api(`/agent/activity?after_id=${watermark}&limit=80`);
+      if (fresh.events.length) {
+        // Newest-first from the API, so prepending in reverse keeps the column ordered.
+        const html = fresh.events.slice().reverse().map((e) => rowHTML(e, true)).reverse().join("");
+        $("stream").insertAdjacentHTML("afterbegin", html);
+        watermark = fresh.events[0].id;
+        // The stream is unbounded otherwise; a long demo would grow the DOM forever.
+        const rows = $("stream").querySelectorAll(".row");
+        for (let i = 400; i < rows.length; i++) rows[i].remove();
+      }
+    }
+    failures = 0;
+    setLive("live", "live");
+  } catch (err) {
+    failures += 1;
+    setLive("paused", `retrying (${failures})`);
+    if (failures === 1) toast(`Stream interrupted: ${err.message}`, true);
+  }
+}
+
+/* ---- queue ---- */
+
+const ACTIONS = [
+  ["recovered_manually", "Recovered", false],
+  ["returned_to_agent", "Return to agent", false],
+  ["written_off", "Write off", true],
+  ["disputed", "Disputed", true],
+];
+
+async function loadQueue() {
+  try {
+    const items = await api("/agent/queue");
+    $("queue-note").textContent = items.length ? `${items.length} waiting` : "";
+    $("queue").innerHTML = items.length
+      ? items.map((q) => `
+        <div class="q-item" data-id="${esc(q.id)}">
+          <div class="q-top">
+            <span>${esc(q.razorpay_payment_id)}</span>
+            <span class="stamp st-${esc(q.status)}">${esc(q.status.replace("_", " "))}</span>
+            <span class="q-amt">${inr(q.amount_paise)}</span>
+          </div>
+          <p class="q-why">${esc(q.reason.replace(/_/g, " "))}</p>
+          <p class="q-meta">${esc(q.source)} · ${esc(q.rail)} · ${esc(q.error_code)} · ${q.retry_count} contact(s)</p>
+          <div class="q-acts">
+            ${ACTIONS.map(([o, label, danger]) =>
+              `<button data-act="${o}" data-pay="${esc(q.id)}" class="${danger ? "danger" : ""}">${label}</button>`
+            ).join("")}
+          </div>
+        </div>`).join("")
+      : `<div class="msg"><b>Queue clear</b>Nothing is waiting on a person.</div>`;
+  } catch (err) {
+    $("queue").innerHTML = `<div class="msg err"><b>Could not read the queue</b>${esc(err.message)}</div>`;
+  }
+}
+
+async function resolve(paymentId, outcome, button) {
+  const siblings = button.parentElement.querySelectorAll("button");
+  siblings.forEach((b) => (b.disabled = true));
+  try {
+    const res = await api(`/agent/queue/${encodeURIComponent(paymentId)}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outcome, operator: "console", note: null }),
+    });
+    toast(`Recorded: ${outcome.replace(/_/g, " ")} — case now ${res.status}`);
+    await Promise.all([loadQueue(), refreshPulse()]);
+  } catch (err) {
+    // A refusal is the rules working, so it reads as a decision rather than a fault.
+    toast(`Refused: ${err.message}`, true);
+    siblings.forEach((b) => (b.disabled = false));
+  }
+}
+
+/* ---- pulse ---- */
+
+async function refreshPulse() {
+  try {
+    const p = await api("/agent/pulse");
+    $("pulse").innerHTML = `
+      <div><dt>Tracked</dt><dd>${p.total}</dd></div>
+      <div><dt>In flight</dt><dd>${p.in_flight}</dd></div>
+      <div><dt>Awaiting review</dt><dd style="color:${p.awaiting_review ? "var(--red)" : "inherit"}">${p.awaiting_review}</dd></div>
+      <div><dt>Recovered</dt><dd style="color:var(--violet)">${p.by_status.recovered ?? 0}</dd></div>`;
+  } catch { /* the stream's own error state already reports connectivity */ }
+}
+
+/* ---- wiring ---- */
+
+document.addEventListener("click", (e) => {
+  const act = e.target.closest("button[data-act]");
+  if (act) { resolve(act.dataset.pay, act.dataset.act, act); return; }
+  const row = e.target.closest(".row");
+  if (row) toggleTrace(row);
+});
+
+document.addEventListener("keydown", (e) => {
+  const row = e.target.closest?.(".row");
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleTrace(row); }
+});
+
+// Polling rather than SSE: it is testable, it survives a dropped connection without
+// reconnect logic, and at 2s it reads as live. The `after_id` watermark means each
+// poll transfers only what is new, not the whole board.
+async function boot() {
+  await Promise.all([pump(), loadQueue(), refreshPulse()]);
+  pollTimer = setInterval(async () => {
+    if (document.hidden) return;   // no point polling a tab nobody is looking at
+    await pump();
+    await refreshPulse();
+  }, 2000);
+  setInterval(() => { if (!document.hidden) loadQueue(); }, 6000);
+
+  // Catch up the instant the tab comes back rather than after the next tick. Skipping
+  // hidden polls is right, but it means a tab returned to is up to two seconds stale —
+  // and in a demo that is exactly the moment someone is looking at it.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) { pump(); refreshPulse(); loadQueue(); }
+  });
+}
+
+boot();
+</script>

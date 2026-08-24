@@ -107,6 +107,10 @@ class FailedPayment(Base):
     # mandate_revoked (which is the mechanism); this records the *cause*, so the cost
     # of over-contacting can be measured rather than only assumed.
     churned_from_dunning: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Recovered by a person, not by the agent. Kept separate from `status` so the causal
+    # measurement can exclude it: crediting an operator's manual save to the intervention
+    # arm would inflate the very lift this system exists to report honestly.
+    recovered_manually: Mapped[bool] = mapped_column(Boolean, default=False)
 
     status: Mapped[str] = mapped_column(String, default=PaymentStatus.NEW.value)
     # OUR attempts. Distinct from gateway_retry_count below, and the distinction is

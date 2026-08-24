@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -51,3 +51,32 @@ def make_session_factory(database_url: str):
     Base.metadata.create_all(bind=isolated_engine)
     factory = sessionmaker(bind=isolated_engine, autoflush=False, autocommit=False)
     return factory, isolated_engine
+
+
+def schema_drift(target_engine=None) -> list[str]:
+    """Columns the models declare that the database does not have.
+
+    `create_all` adds missing TABLES but never missing COLUMNS, so a database created
+    before a field was added keeps working right up until something selects that field —
+    and then every request fails with an OperationalError that reads like a server
+    fault. This turns that into one legible line at startup.
+
+    Not a migration system, and not pretending to be one: it detects drift and says
+    what to do about it. A real deployment needs Alembic.
+    """
+    from app import models  # noqa: F401  (register models on Base)
+
+    engine = target_engine or globals()["engine"]
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    problems: list[str] = []
+    for table_name, table in Base.metadata.tables.items():
+        if table_name not in existing_tables:
+            # A missing table is not drift — create_all will add it on next init.
+            continue
+        actual = {c["name"] for c in inspector.get_columns(table_name)}
+        for column in table.columns:
+            if column.name not in actual:
+                problems.append(f"{table_name}.{column.name} is missing from the database")
+    return problems

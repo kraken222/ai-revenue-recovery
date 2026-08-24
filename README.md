@@ -364,17 +364,58 @@ cp .env.example .env
 Everything runs with zero external services: SQLite by default, and a `DryRunGateway` stands in whenever Razorpay credentials are absent, so the full pipeline is demoable offline.
 
 ```bash
-python -m pytest tests/ -q                    # 143 tests, all offline
+python -m pytest tests/ -q                    # 166 tests, all offline
 python -m scripts.seed_synthetic_data 300     # full pipeline + causal lift + learned arms
 python -m scripts.ablation 400 12             # does the learned machinery earn its keep?
 python -m scripts.demo_llm_classifier         # self-consistency ensemble, offline stub
 python -m scripts.demo_sources                # three revenue-at-risk regimes, offline
-uvicorn app.main:app --reload                 # dashboard at http://localhost:8000
+uvicorn app.main:app --reload                 # console at /console, register at /
 ```
 
 `ANTHROPIC_API_KEY` is optional. Unset, the LLM tier is inert: the rule table still
 classifies every clean error code, free-text narrations route to human review rather
 than being guessed at, and message templates ship as written. Nothing else changes.
+
+## The console
+
+`GET /console` is where you watch the agent work. The register at `/` proves the
+measurement; this proves the machine.
+
+One webhook in, and the reasoning chain streams in without a reload:
+
+```
+ingestion       upi_autopay insufficient_balance
+classification  soft_decline (rule)
+compliance      COMP-006-compliant-retry-window -> retry_at
+guardrail       retry_at
+escalation      rung 1 reminder
+bandit          slot 06:00 - posterior 50%
+economics       EV Rs.1,008 - p=50.0% - positive_expected_value
+decision        retry_at
+execution       scheduled, not yet due
+```
+
+Alongside it, the **human review queue** — the cases the agent handed to a person,
+longest-waiting first, each carrying the rule that refused to act on it. An operator can
+close a case from there, and that is the one place in the system a human writes back.
+
+**A human instruction is still bound by compliance.** Handing a consent-withdrawn case
+back to the agent is refused with a 409, and the refusal is written to the trail as
+`actor: human`:
+
+```
+refused with HTTP 409: customer withdrew consent; no further contact is permitted
+audit: {'operator': 'anoop', 'outcome': 'returned_to_agent', 'refused': True, ...}
+```
+
+If clicking a button could authorise an action the rules forbid, every rule in
+`compliance.py` would be advisory. A trail containing only permitted actions also could
+not show the gate had ever stopped anyone, which is why refusals are recorded rather
+than merely rejected.
+
+The feed is cursor-based rather than time-based, and that is not incidental: an entire
+`decide()` cycle writes eight or more audit rows at one instant, so a `since_timestamp`
+feed would either drop rows sharing the boundary or serve them twice.
 
 ## The dashboard
 

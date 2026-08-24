@@ -43,3 +43,13 @@ class FailedPaymentOut(BaseModel):
     recovered_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class ResolveRequest(BaseModel):
+    """An operator closing an escalated case. `outcome` is validated against
+    console.RESOLUTIONS server-side rather than by an enum here, so the refusal is
+    recorded in the audit trail instead of being rejected before it reaches one."""
+
+    outcome: str
+    operator: str
+    note: str | None = None
