@@ -364,7 +364,7 @@ cp .env.example .env
 Everything runs with zero external services: SQLite by default, and a `DryRunGateway` stands in whenever Razorpay credentials are absent, so the full pipeline is demoable offline.
 
 ```bash
-python -m pytest tests/ -q                    # 166 tests, all offline
+python -m pytest tests/ -q                    # 180 tests, all offline
 python -m scripts.seed_synthetic_data 300     # full pipeline + causal lift + learned arms
 python -m scripts.ablation 400 12             # does the learned machinery earn its keep?
 python -m scripts.demo_llm_classifier         # self-consistency ensemble, offline stub
@@ -454,6 +454,57 @@ Compliance is verified as **invariants over executed actions**, not inferred fro
 Checking a payment's *status* is not a compliance check. Only whether a contact was actually executed against the gateway tells you whether a rule was breached — a distinction that caught a false positive in my own metric.
 
 The revocation invariant then needed a second correction, and it is the more interesting one. "Did we contact after revocation?" was implemented as "does a revoked payment have any contacts?" — a different question, and a wrong one, because a customer can revoke *after* a contact that was entirely legal when it was made. Counting those retroactively made the invariant unpassable for something that was not a violation. It now compares each contact's timestamp against `mandate_revoked_at`. Six tests pin the semantics, including the case that was silently failing.
+
+---
+
+## The Razorpay boundary
+
+Two things were wrong here, and the first was serious.
+
+**`/webhooks/razorpay` had no signature verification.** The secret was declared in
+config and never used, so anyone who knew the URL could POST a fabricated failed
+payment — which runs compliance, and can execute a gateway action that sends a real
+payment link to a real customer. That is not a hardening gap; it is the difference
+between an agent and an open relay. Both webhook endpoints now verify an HMAC-SHA256
+signature over the **raw** body, before parsing (re-serialising a parsed dict changes
+key order and whitespace, so the HMAC would never match), compared with
+`hmac.compare_digest` so a forged signature cannot be reconstructed a byte at a time.
+
+```
+no signature      -> 401 webhook rejected: missing signature header
+forged signature  -> 401 webhook rejected: signature did not match
+valid signature   -> 200 {'processed': True, ...}
+```
+
+An unset secret still permits everything, because local runs and CI have no secret and
+the project is offline by design. That is the one branch that could silently disable
+the check in a deployment, so it is stated here and pinned by a test.
+
+**The SDK did not import on Python 3.12.** `razorpay==1.4.2` needs `pkg_resources`,
+removed from modern setuptools, so `RazorpayGateway` would have raised on construction
+the first time anyone supplied credentials. Pinned to `2.0.1`.
+
+Three further things the tests forced out:
+
+- **A live key is refused outright.** Every amount here is synthetic, so `rzp_live_`
+  credentials would raise a real payment request against a real customer for a debt
+  that never existed. Cheaper to refuse than to trust a deployment checklist.
+- **Payment links are idempotent per payment.** Razorpay mints a new link on every
+  `create`, so a redelivered webhook would send one customer several different links
+  for one debt. A stable `reference_id` makes the second attempt collide server-side.
+- **A 5xx is recorded as `pending`, not `failed`.** A server error means we do not know
+  whether the link was created; calling that a failure lets a retry raise a second link
+  against the same debt. Only a 4xx — where the request was rejected and nothing was
+  created — is `failed`.
+
+```bash
+RAZORPAY_KEY_ID=rzp_test_xxx RAZORPAY_KEY_SECRET=yyy python -m scripts.verify_razorpay
+```
+
+Creates a real test-mode Payment Link, fetches it back, checks the amount survived the
+round trip, and cancels it. Without credentials it explains what it needs and exits 1 —
+the pipeline still runs end to end on the DryRunGateway, which is the state a reviewer
+clones into.
 
 ---
 

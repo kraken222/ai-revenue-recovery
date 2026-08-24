@@ -4,7 +4,7 @@ sqlalchemy==2.0.35
 pydantic==2.9.2
 pydantic-settings==2.5.2
 python-dotenv==1.0.1
-razorpay==1.4.2
+razorpay==2.0.1
 # Optional: without credentials the LLM tier is inert and the system still runs.
 anthropic>=0.40.0
 pytest==8.3.3

@@ -61,6 +61,10 @@ class DryRunGateway:
 
 
 
+class UnsafeCredentials(Exception):
+    """Live credentials in a system whose data is synthetic."""
+
+
 class RazorpayGateway:
     """Real Razorpay test-mode calls. Only send_payment_link is a confirmed API;
     retry_charge is a placeholder — see module docstring."""
@@ -71,16 +75,57 @@ class RazorpayGateway:
         self._client = razorpay.Client(auth=(key_id, key_secret))
 
     def send_payment_link(self, payment: FailedPayment) -> GatewayResult:
-        link = self._client.payment_link.create(
-            {
-                "amount": payment.amount_paise,
-                "currency": payment.currency,
-                "description": f"Retry payment for {payment.razorpay_payment_id}",
-                "customer": {"contact": "", "name": ""},
-                "notify": {"sms": True, "email": True},
-            }
-        )
+        try:
+            link = self._client.payment_link.create(
+                {
+                    "amount": payment.amount_paise,   # smallest unit; rupees would be 1/100th
+                    "currency": payment.currency,
+                    "description": f"Payment for {payment.razorpay_payment_id}",
+                    # Razorpay mints a NEW link on every create call, so a redelivered
+                    # webhook or a worker re-run would send one customer several
+                    # different links for a single debt. A stable reference_id keyed on
+                    # the payment makes the second attempt collide server-side instead.
+                    "reference_id": self.reference_for(payment),
+                    "notify": {"sms": True, "email": True},
+                    "reminder_enable": False,   # our escalation ladder owns the cadence
+                    "notes": {
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "internal_id": payment.id,
+                        "source": payment.source,
+                    },
+                }
+            )
+        except Exception as exc:
+            return self._classify_failure(exc)
+
         return GatewayResult(outcome="pending", ref=link.get("id"), message=link.get("short_url"))
+
+    @staticmethod
+    def reference_for(payment: FailedPayment) -> str:
+        """One stable id per debt, so a repeated create is a collision rather than a
+        second link."""
+        return f"rcv-{payment.razorpay_payment_id}"
+
+    @staticmethod
+    def _classify_failure(exc: Exception) -> GatewayResult:
+        """A 4xx tells us the request was wrong, so nothing was created and `failed` is
+        accurate. A 5xx tells us nothing at all — the link may well exist — so it is
+        recorded as `pending`. Calling that `failed` would let a retry raise a second
+        link against the same debt.
+        """
+        import razorpay.errors as rzp
+
+        if isinstance(exc, (rzp.ServerError, rzp.GatewayError)):
+            outcome = "pending"
+        elif isinstance(exc, rzp.BadRequestError):
+            outcome = "failed"
+        else:
+            # An unrecognised failure is treated as unknown rather than as a definite
+            # failure, for the same reason as a 5xx.
+            outcome = "pending"
+
+        logger.warning("razorpay call failed (%s): %s", type(exc).__name__, exc)
+        return GatewayResult(outcome=outcome, ref=None, message=f"{type(exc).__name__}: {exc}")
 
     def request_new_mandate(self, payment: FailedPayment) -> GatewayResult:
         # TODO: verify current Razorpay Subscriptions/eNACH registration-link API
@@ -99,8 +144,17 @@ class RazorpayGateway:
 
 
 def get_gateway():
-    if settings.razorpay_key_id and settings.razorpay_key_secret:
-        return RazorpayGateway(settings.razorpay_key_id, settings.razorpay_key_secret)
+    key_id = settings.razorpay_key_id
+    if key_id and settings.razorpay_key_secret:
+        # Every figure in this system is synthetic. A live key would raise real payment
+        # links against real customers for debts that do not exist, so it is refused
+        # here rather than left to a deployment checklist.
+        if key_id.startswith("rzp_live_"):
+            raise UnsafeCredentials(
+                "RAZORPAY_KEY_ID is a live key. This system runs on synthetic data and "
+                "must only be pointed at a test-mode account (rzp_test_...)."
+            )
+        return RazorpayGateway(key_id, settings.razorpay_key_secret)
     return DryRunGateway()
 
 

@@ -1,11 +1,14 @@
+import logging
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import console, metrics, pipeline
+from app import console, metrics, pipeline, webhook_auth
+from app.config import settings
 from app.db import get_db, init_db, schema_drift
 from app.models import AuditLog, FailedPayment
 from app.schemas import (
@@ -15,6 +18,8 @@ from app.schemas import (
     ResolveRequest,
     WebhookEnvelope,
 )
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Revenue Recovery")
 
@@ -41,14 +46,44 @@ def health():
     return {"status": "ok"}
 
 
+async def _authentic_body(request: Request) -> bytes:
+    """Read and verify the raw request body.
+
+    Raw, and before parsing: the signature covers the exact bytes Razorpay sent, and
+    re-serialising a parsed dict changes key order and whitespace, so the HMAC would
+    never match. FastAPI would normally parse the body into a model for us, which is
+    why these two endpoints take the Request directly.
+    """
+    body = await request.body()
+    signature = request.headers.get(webhook_auth.SIGNATURE_HEADER)
+    secret = settings.razorpay_webhook_secret
+
+    if not webhook_auth.is_authentic(body, signature, secret):
+        reason = webhook_auth.rejection_reason(signature, secret)
+        logger.warning("rejected webhook: %s", reason)
+        raise HTTPException(status_code=401, detail=f"webhook rejected: {reason}")
+    return body
+
+
+def _parse(body: bytes, model):
+    try:
+        return model.model_validate_json(body)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+
 @app.post("/webhooks/razorpay")
-def razorpay_webhook(envelope: WebhookEnvelope, db: Session = Depends(get_db)):
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+    envelope = _parse(await _authentic_body(request), WebhookEnvelope)
     payment = pipeline.ingest_event(db, envelope.event_id, envelope.event, envelope.payload)
     return {"processed": payment is not None, "failed_payment_id": payment.id if payment else None}
 
 
 @app.post("/webhooks/razorpay/outcome")
-def razorpay_outcome_webhook(envelope: OutcomeEnvelope, db: Session = Depends(get_db)):
+async def razorpay_outcome_webhook(request: Request, db: Session = Depends(get_db)):
+    # Protected on the same footing as the other endpoint: this one moves a payment to
+    # RECOVERED, so leaving it open would let anyone mark debts settled.
+    envelope = _parse(await _authentic_body(request), OutcomeEnvelope)
     payment = pipeline.ingest_outcome(db, envelope.event_id, envelope.razorpay_payment_id, envelope.success)
     if payment is None:
         raise HTTPException(status_code=404, detail="no matching failed payment for outcome event")
