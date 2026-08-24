@@ -46,7 +46,12 @@ class DecisionOutcome:
 
 def decide(db: Session, payment: FailedPayment, now: datetime | None = None) -> DecisionOutcome:
     now = as_aware(now) or utcnow()
-    result = classify(Rail(payment.rail), payment.error_code, payment.error_description)
+    result = classify(
+        Rail(payment.rail),
+        payment.error_code,
+        payment.error_description,
+        source=getattr(payment, "source", None) or "failed_payment",
+    )
     db.add(
         Classification(
             failed_payment_id=payment.id,

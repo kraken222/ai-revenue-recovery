@@ -433,3 +433,57 @@ def test_night_contact_is_deferred_on_every_source(db):
         payment = _payment(db, source=source, razorpay_payment_id=f"pay_n{i}", now=night)
         decision = decision_engine.decide(db, payment, now=night)
         assert within_contact_window(decision.scheduled_at), source
+
+
+def test_sources_without_declines_are_never_classified(db):
+    """A checkout was never submitted and an invoice was never declined, so there is no
+    bank verdict to classify. Asking anyway recorded a false `rule_miss` in the audit
+    trail and — with credentials configured — would have sent every one of those rows
+    to the model for a classification that cannot change the decision."""
+    from sqlalchemy import select
+
+    from app import decision_engine
+    from app.models import Category, Classification
+
+    now = datetime(2026, 1, 15, 11, tzinfo=IST)
+    for i, src in enumerate(("abandoned_checkout", "overdue_invoice")):
+        payment = _payment(db, source=src, razorpay_payment_id=f"pay_na{i}", now=now)
+        decision_engine.decide(db, payment, now=now)
+
+        row = db.scalar(
+            select(Classification)
+            .where(Classification.failed_payment_id == payment.id)
+            .order_by(Classification.id.desc())
+        )
+        assert row.source == "not_applicable", src
+        assert row.category == Category.NOT_APPLICABLE.value, src
+
+
+def test_not_applicable_is_distinct_from_unknown(db):
+    """UNKNOWN means we tried to classify a decline and could not; NOT_APPLICABLE means
+    there was no decline to classify. Collapsing them hides a skipped question inside a
+    failed one, and only the first should reach a human."""
+    from app.models import Category
+
+    assert Category.NOT_APPLICABLE.value != Category.UNKNOWN.value
+
+
+def test_failed_payments_are_still_classified(db):
+    """The gate must not silence the source that genuinely needs classifying."""
+    from sqlalchemy import select
+
+    from app import decision_engine
+    from app.models import Classification
+
+    now = datetime(2026, 1, 15, 11, tzinfo=IST)
+    payment = _payment(db, source="failed_payment", rail="card",
+                       error_code="expired_card", razorpay_payment_id="pay_fp", now=now)
+    decision_engine.decide(db, payment, now=now)
+
+    row = db.scalar(
+        select(Classification)
+        .where(Classification.failed_payment_id == payment.id)
+        .order_by(Classification.id.desc())
+    )
+    assert row.source == "rule"
+    assert row.category == "hard_decline"

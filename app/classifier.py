@@ -32,7 +32,24 @@ class ClassificationResult:
     raw: dict | None = None
 
 
-def classify(rail: Rail, error_code: str, error_description: str = "") -> ClassificationResult:
+def classify(
+    rail: Rail, error_code: str, error_description: str = "", source: str = "failed_payment"
+) -> ClassificationResult:
+    # Only a failed payment HAS a decline category. A checkout was never submitted and an
+    # invoice was never declined, so there is no bank verdict to classify — and asking
+    # anyway produced two real problems: the audit trail recorded "the rule table missed"
+    # for a question that should never have been asked, and with credentials configured
+    # every one of those rows would have been sent to the model for a classification that
+    # cannot change the decision, because compliance short-circuits those sources before
+    # category is consulted.
+    if source != "failed_payment":
+        return ClassificationResult(
+            category=Category.NOT_APPLICABLE,
+            confidence=1.0,
+            source="not_applicable",
+            raw={"reason": "source has no decline category", "payment_source": source},
+        )
+
     category = lookup(rail, error_code)
     if category is not None:
         return ClassificationResult(category=category, confidence=1.0, source="rule")

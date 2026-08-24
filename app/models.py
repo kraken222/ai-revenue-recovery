@@ -28,6 +28,10 @@ class Category(str, enum.Enum):
     TECHNICAL = "technical"
     RISK_BLOCK = "risk_block"
     UNKNOWN = "unknown"
+    # Distinct from UNKNOWN. UNKNOWN means "we tried to classify a decline and could
+    # not"; NOT_APPLICABLE means there was no decline to classify in the first place.
+    # Collapsing them would hide a skipped question inside a failed one.
+    NOT_APPLICABLE = "not_applicable"
 
 
 class PaymentStatus(str, enum.Enum):
