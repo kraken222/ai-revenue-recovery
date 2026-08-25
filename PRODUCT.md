@@ -43,7 +43,10 @@ Judges will encounter this as a 5-minute screen recording plus a repo. Ops users
 - Full reasoning trace per payment: every classification, rule fired, guardrail check, bandit draw, EV computation, and action.
 - Replicated ablation harness with paired confidence intervals.
 - **Terminology that must be used exactly:** rail, decline category, compliant action set, holdout / control arm, causal lift, bandit arm, posterior, expected value, compliance invariant, audit trail.
-- **Undecided / not built:** LLM classifier fallback is a seam only (rule-table misses go to human review); `retry_charge` is not wired to a verified Razorpay API; off-policy evaluation is unimplemented.
+- Three revenue-at-risk sources on three distinct compliance regimes: failed payment, abandoned checkout (not a debt — one nudge, no ladder), overdue MSMED receivable.
+- Two-tier classification: rule table on clean error codes, self-consistency LLM ensemble across three *framings* on free-text bank narration. Every failure path resolves to `UNKNOWN` → `escalate_human`; inert without an API key.
+- Signature-verified webhooks (HMAC-SHA256 over the raw body) and idempotent Razorpay Payment Links.
+- **Not built:** `retry_charge` and `request_new_mandate` raise rather than call an unverified Razorpay API; off-policy evaluation is unimplemented; voice decides lawfulness and writes the script but does not dial; the LLM classifier's thresholds are reasoned, not fitted against labelled data.
 
 ## Brand Commitments
 
@@ -53,12 +56,22 @@ Built for the Razorpay AI Buildathon. Razorpay is the platform being built on, n
 
 All figures come from a synthetic simulation, and this must never be presented as real Razorpay traffic:
 
-- Causal recovery lift, intervention vs 15% holdout (currently ~+45%).
+- Causal recovery lift, intervention vs 15% holdout: **+46.3%** replicated across 12 seeds (a single `seed_synthetic_data` run varies roughly +45% to +55% by seed; quote the replicated figure, not one run's).
 - Net economic value: gross recovered, contact spend, measured churn loss.
-- Compliance invariants measured on executed actions, currently 4/4 passing.
+- Compliance invariants measured on executed actions, currently **6/6 passing**, asserted in CI against 300 payments driven through the full pipeline.
 - Learned bandit posteriors that demonstrably recover a hidden time-of-day ground truth the model was never told.
-- Replicated ablation, 400 payments × 12 seeds: full system vs fixed-schedule baseline, mean net delta +₹208,373, 95% CI [+97,869, +318,877], 11/12 seeds improved.
-- 31 passing tests.
+- Replicated ablation, 400 payments × 12 seeds: full system vs fixed-schedule baseline, **mean net delta +₹5,482, 95% CI [−27,996, +38,959], 5/12 seeds improved — the CI includes zero, so the effect is not established at this n.**
+- **180 passing tests.**
+
+**The flat ablation result is the honest one and must not be "corrected" upward.** An
+earlier version of this file claimed +₹208,373 with a CI excluding zero and 11/12 seeds
+improved. That number was real when written and is now wrong: two correctness fixes
+erased it — modelling Razorpay's actual card-retry semantics (which removed the
+over-contacting the EV gate existed to prevent) and making `ltv_multiple` a property of
+the source rather than a global 12×. Both fixes are still right. Reverting to the
+flattering figure would mean measuring the system against a baseline known to be wrong,
+which the whole project exists to refuse. See [README § Does the complexity pay for
+itself?](README.md#does-the-complexity-pay-for-itself).
 
 Absences future work must not fabricate: no real merchant data, no real recovery rates, no production deployment, no customer testimonials, no Razorpay endorsement.
 

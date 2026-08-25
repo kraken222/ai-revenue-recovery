@@ -229,7 +229,7 @@ the law is broken.
 
 **The Graphite Pencil Rule.** Positive marks are struck in graphite, not red. The
 auditor's pencil hierarchy is real — exceptions are red, but ticks and footings are
-graphite. A red check beside "4/4 assertions clean" reads as a failure and undoes the
+graphite. A red check beside "6/6 assertions clean" reads as a failure and undoes the
 line it sits on. This was a live finding: the positive ticks had been painted in the
 failure hue and were corrected to graphite.
 

@@ -6,6 +6,11 @@ An agent that detects payments slipping away, decides what to do about them, and
 
 CI does more than run the tests: it drives 300 synthetic payments through the whole pipeline and **fails the build if any compliance invariant reports a breach**. A green tick means the loop ran and no contact rule was violated.
 
+> **[`ARCHITECTURE.md`](ARCHITECTURE.md)** is the map — system diagram, module
+> responsibilities, data model, trust boundaries, and the failure-mode/fallback table.
+> Read it first if you want the shape. This README is the argument: *why* each decision
+> is the way it is, and what the measurements say about whether it works.
+
 Failed recurring payments are not a niche problem: involuntary churn (a payment that fails for mechanical reasons, not because the customer chose to leave) is [20–40% of total subscription churn](https://link.springer.com/article/10.1057/s41270-025-00450-2). The customer wants to keep paying. The money leaves anyway.
 
 ---
