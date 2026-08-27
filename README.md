@@ -157,6 +157,64 @@ erroring, two usable votes can each hold 50%, and `Counter.most_common` would br
 tie by insertion order — silently turning a coin flip into a confident decision. That
 is now an explicit rejection with its own test.
 
+### Measuring the classifier ([`eval/`](eval/), [`scripts/eval_classifier.py`](scripts/eval_classifier.py))
+
+```bash
+python -m scripts.eval_classifier          # rule tier, offline and deterministic
+python -m scripts.eval_classifier --llm    # both tiers, needs ANTHROPIC_API_KEY
+```
+
+**Accuracy is the wrong headline metric for a classifier that is allowed to refuse.**
+This one abstains — everything it cannot resolve becomes UNKNOWN and escalates — so a
+miss costs a human's time while a confident wrong answer can send the wrong action to a
+real customer. Scoring both as "inaccurate" would rate the safe failure and the
+dangerous one identically, and would reward a classifier that guesses over one that
+escalates.
+
+So the harness grades against `CATEGORY_ALLOWED_ACTIONS`, asking whether a mistake would
+actually have changed what the system *did*:
+
+| | | cost |
+|---|---|---|
+| `safe_miss` | a defensible label existed; it escalated instead | a human does work a machine could have |
+| `benign_error` | wrong category, **same** action set (`soft` ↔ `technical` both retry) | none, in effect |
+| `action_changing_error` | wrong category, **different** action set | the system would have done the wrong thing |
+
+On the 32 rows the taxonomy does **not** define — realistic PSP codes absent from the
+table, plus mis-cased and padded variants of codes that are in it:
+
+```
+  category          precision   recall       F1  support
+  soft_decline          1.000    0.400    0.571        5
+  hard_decline          1.000    0.059    0.111       17
+  technical             1.000    0.250    0.400        4
+
+  safe_miss                 23  (72%)      <- go to a human, offline
+  ACTION-CHANGING ERRORS     0  (0%)
+```
+
+Precision is 1.000 wherever a claim is made and recall is low, which is the shape you
+want here: the rule tier answers only what it is certain of and hands the other 72% on.
+With credentials those rows go to the ensemble instead of to a person — which is the
+whole reason the second tier exists, and also why that 72% is not a defect.
+
+**The eval found a real bug.** `taxonomy.lookup` was an exact dict match, so
+`EXPIRED_CARD`, `Insufficient_Funds`, ` npci_timeout ` and `insufficient-funds` all
+missed the table. Safe — every one escalated rather than guessed — but it spends an
+operator on a case a fold would resolve, and a PSP that started upper-casing its codes
+would have silently moved most of its traffic to the review queue with no test going
+red. `normalise_code` now folds case, whitespace and the hyphen/underscore split, and
+deliberately does *not* fuzzy-match: a near-miss between two genuinely different codes
+is exactly the case that must reach a human rather than be coerced onto the
+closest-looking rule.
+
+**Two things this eval is not.** The set is hand-authored against published error-code
+documentation, not sampled from production webhooks — so it measures conformance to
+spec, not accuracy on live traffic. And the LLM tier is **not** scored against the
+offline stub, because scripted votes would measure the fixture rather than the
+classifier. Without a key the harness reports that tier as absent instead of printing a
+number it did not earn.
+
 ### Customer copy — templates ship, the model only improves them ([`app/messaging.py`](app/messaging.py))
 
 Generation is **off by default**, because this is the only stage whose output reaches a
@@ -369,9 +427,10 @@ cp .env.example .env
 Everything runs with zero external services: SQLite by default, and a `DryRunGateway` stands in whenever Razorpay credentials are absent, so the full pipeline is demoable offline.
 
 ```bash
-python -m pytest tests/ -q                    # 180 tests, all offline
+python -m pytest tests/ -q                    # 204 tests, all offline
 python -m scripts.seed_synthetic_data 300     # full pipeline + causal lift + learned arms
 python -m scripts.ablation 400 12             # does the learned machinery earn its keep?
+python -m scripts.eval_classifier             # classifier precision/recall vs eval/
 python -m scripts.demo_llm_classifier         # self-consistency ensemble, offline stub
 python -m scripts.demo_sources                # three revenue-at-risk regimes, offline
 uvicorn app.main:app --reload                 # console at /console, register at /
@@ -529,7 +588,7 @@ Stated plainly, because a system that hides these is worse than one that names t
 - **The world is synthetic.** Ground-truth recovery and churn probabilities are invented. The bandit demonstrably learns the hidden structure and the ablation is internally valid, but no number here is a claim about real Razorpay traffic.
 - **`retry_charge` is not wired to a verified API.** Only Payment Links is a confirmed Razorpay call. Razorpay runs its own dunning on subscriptions, so forcing a retry may not be the right primitive at all — this needs reconciling against live docs before go-live, and the code raises rather than pretending otherwise.
 - **`churn_risk_per_contact` is assumed, not calibrated.** It sets the breakeven recovery probability, so the EV gate is only as good as this number. It needs real cohort data.
-- **The LLM classifier has never been evaluated against labelled data.** The ensemble, the thresholds and the fall-through are built and tested, but "is 2-of-3 agreement the right bar?" is an empirical question and there is no labelled set of real bank narrations here to answer it. The thresholds are reasoned, not fitted.
+- **The classifier has never been evaluated against *real* labelled data.** There is now a labelled set and a harness ([`eval/`](eval/), [`scripts/eval_classifier.py`](scripts/eval_classifier.py)), and it earns a real number for the rule tier — but every row in it is **hand-authored against published error-code documentation, not sampled from production webhooks**, so it measures conformance to spec, not accuracy on live traffic. Two consequences stand: the LLM tier cannot be scored at all without credentials (and is deliberately *not* scored against the offline stub, which would measure the fixture), and "is 2-of-3 agreement the right bar?" is still an empirical question the thresholds are reasoned into rather than fitted to.
 - **No off-policy evaluation before promoting a policy.** [Adyen's approach](https://arxiv.org/html/2501.10470v1) is the right reference. Today a bandit update takes effect immediately.
 - **Voice dialling is not implemented.** The TRAI compliance gate and the Hinglish script are built and tested; the carrier integration, the DLT-registered 1600-series originator and the live NCPR lookup are not.
 - **The RBI bank rate is a single constant.** Interest spanning a rate change should use each rate for its own window; a real implementation needs a dated rate table.

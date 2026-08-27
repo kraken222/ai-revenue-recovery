@@ -135,7 +135,7 @@ two of the three sources there is no decline to classify at all.
 
 | Module | Responsibility |
 |---|---|
-| [`taxonomy.py`](app/taxonomy.py) | `(rail, error_code) → Category`. Per-rail error maps for Card / UPI Autopay / eNACH. |
+| [`taxonomy.py`](app/taxonomy.py) | `(rail, error_code) → Category`. Per-rail error maps for Card / UPI Autopay / eNACH. `normalise_code` folds case/whitespace/hyphen variance — but never fuzzy-matches. |
 | [`compliance.py`](app/compliance.py) | The legal action set. Emits a `COMP-0NN` rule id with every verdict. |
 | [`contact_policy.py`](app/contact_policy.py) | RBI Fair Practices contact window, **in IST**. Separates a silent debit from a customer contact. |
 | [`guardrails.py`](app/guardrails.py) | Operational, not legal: daily contact cap, per-issuer circuit breaker. Emits `GUARD-0NN`. |
@@ -356,6 +356,16 @@ CI runs these against 300 synthetic payments driven through the whole pipeline a
 **fails the build on any breach** — so a green tick means no contact rule was
 violated, not merely that tests passed.
 
+**Classification is measured on action consequence, not raw accuracy.**
+[`scripts/eval_classifier.py`](scripts/eval_classifier.py) scores the classifier
+against the labelled set in [`eval/`](eval/), grading each error by whether it would
+have crossed into a *different* compliant action set — because `soft_decline` and
+`technical` both map to `["retry_now", "retry_at"]`, so confusing them changes the
+audit label but not the money action, while `soft` ↔ `hard` changes what the customer
+receives. CI fails on any action-changing error. The set is hand-authored against
+published error-code documentation, so it measures conformance to spec rather than
+accuracy on live traffic, and the harness prints that caveat on every run.
+
 ---
 
 ## 11. Running it
@@ -373,6 +383,7 @@ credentials are absent.
 python -m pytest tests/ -q                 # full suite, offline
 python -m scripts.seed_synthetic_data 300  # full pipeline + causal lift + learned arms
 python -m scripts.ablation 400 12          # does the learned machinery earn its keep?
+python -m scripts.eval_classifier          # classifier precision/recall vs eval/
 uvicorn app.main:app --reload              # console at /console, register at /
 ```
 

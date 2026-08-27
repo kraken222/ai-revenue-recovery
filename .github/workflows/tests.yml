@@ -54,6 +54,22 @@ jobs:
           print(f"\nAll {len(checks)} invariants hold.")
           PY
 
+      - name: Classifier eval - no action-changing errors
+        # Precision/recall against the labelled set in eval/. The rule tier is
+        # deterministic and offline, so it runs here; the LLM tier needs credentials
+        # and is skipped rather than scored against a stub, which would measure the
+        # fixture instead of the classifier. Fails the build if any misclassification
+        # would have crossed into a different compliant action set.
+        run: |
+          python - <<'PY'
+          from scripts.eval_classifier import eval_rule_tier
+
+          summary = eval_rule_tier()
+          dangerous = summary.get("action_changing", 0)
+          assert dangerous == 0, f"{dangerous} action-changing classification error(s)"
+          print(f"\nNo action-changing errors across {summary['n']} undefined-code rows.")
+          PY
+
       - name: Demos run offline
         run: |
           python -m scripts.demo_llm_classifier

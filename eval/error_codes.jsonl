@@ -1,0 +1,60 @@
+{"id": "ec001", "rail": "card", "code": "insufficient_funds", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "canonical soft decline"}
+{"id": "ec002", "rail": "card", "code": "card_declined", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "generic issuer decline, retryable"}
+{"id": "ec003", "rail": "card", "code": "limit_exceeded", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "velocity limit, resets"}
+{"id": "ec004", "rail": "card", "code": "expired_card", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "no Account Updater in India; needs re-registration"}
+{"id": "ec005", "rail": "card", "code": "invalid_card", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "instrument is dead"}
+{"id": "ec006", "rail": "card", "code": "card_not_activated_for_international", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "needs customer action, not a retry"}
+{"id": "ec007", "rail": "card", "code": "authentication_failed", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "needs fresh authorisation"}
+{"id": "ec008", "rail": "card", "code": "issuer_unavailable", "label": "technical", "in_table": true, "difficulty": "clean", "note": "feeds the circuit breaker"}
+{"id": "ec009", "rail": "card", "code": "gateway_timeout", "label": "technical", "in_table": true, "difficulty": "clean", "note": "infrastructure, not customer"}
+{"id": "ec010", "rail": "card", "code": "processing_error", "label": "technical", "in_table": true, "difficulty": "clean", "note": "infrastructure, not customer"}
+{"id": "ec011", "rail": "card", "code": "fraud_suspected", "label": "risk_block", "in_table": true, "difficulty": "clean", "note": "never auto-retried"}
+{"id": "ec012", "rail": "card", "code": "risk_check_failed", "label": "risk_block", "in_table": true, "difficulty": "clean", "note": "never auto-retried"}
+{"id": "ec013", "rail": "upi_autopay", "code": "insufficient_balance", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "the salary-cycle case the bandit exploits"}
+{"id": "ec014", "rail": "upi_autopay", "code": "debit_declined_by_bank", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "retryable bank decline"}
+{"id": "ec015", "rail": "upi_autopay", "code": "mandate_not_active", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "no mandate, no debit"}
+{"id": "ec016", "rail": "upi_autopay", "code": "mandate_revoked", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "consent withdrawn; compliance hard-stops separately"}
+{"id": "ec017", "rail": "upi_autopay", "code": "mandate_limit_exceeded", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "debit above the registered mandate cap"}
+{"id": "ec018", "rail": "upi_autopay", "code": "psp_app_unavailable", "label": "technical", "in_table": true, "difficulty": "clean", "note": "PSP-side outage"}
+{"id": "ec019", "rail": "upi_autopay", "code": "npci_timeout", "label": "technical", "in_table": true, "difficulty": "clean", "note": "switch timeout"}
+{"id": "ec020", "rail": "upi_autopay", "code": "bank_server_down", "label": "technical", "in_table": true, "difficulty": "clean", "note": "remitter bank outage"}
+{"id": "ec021", "rail": "upi_autopay", "code": "debit_declined_by_bank_risk", "label": "risk_block", "in_table": true, "difficulty": "clean", "note": "risk engine, not funds"}
+{"id": "ec022", "rail": "enach", "code": "insufficient_funds", "label": "soft_decline", "in_table": true, "difficulty": "clean", "note": "same code, different rail"}
+{"id": "ec023", "rail": "enach", "code": "mandate_cancelled", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "mandate dead"}
+{"id": "ec024", "rail": "enach", "code": "account_closed", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "instrument dead"}
+{"id": "ec025", "rail": "enach", "code": "invalid_account", "label": "hard_decline", "in_table": true, "difficulty": "clean", "note": "instrument dead"}
+{"id": "ec026", "rail": "enach", "code": "bank_technical_failure", "label": "technical", "in_table": true, "difficulty": "clean", "note": "destination bank fault"}
+{"id": "ec027", "rail": "enach", "code": "npci_enach_timeout", "label": "technical", "in_table": true, "difficulty": "clean", "note": "switch timeout"}
+{"id": "ec028", "rail": "enach", "code": "suspected_fraud", "label": "risk_block", "in_table": true, "difficulty": "clean", "note": "never auto-retried"}
+{"id": "ec029", "rail": "card", "code": "do_not_honour", "label": "unknown", "in_table": false, "difficulty": "ambiguous", "note": "the classic ambiguous decline: spans funds, risk and issuer policy. Escalation is correct."}
+{"id": "ec030", "rail": "card", "code": "incorrect_cvv", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "stored credential is wrong; a retry cannot fix it"}
+{"id": "ec031", "rail": "card", "code": "card_lost_or_stolen", "label": "risk_block", "in_table": false, "difficulty": "clean", "note": "must never be auto-retried"}
+{"id": "ec032", "rail": "card", "code": "transaction_not_permitted", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "card not enabled for recurring; needs re-registration"}
+{"id": "ec033", "rail": "card", "code": "card_blocked", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "issuer blocked the instrument"}
+{"id": "ec034", "rail": "card", "code": "issuer_declined", "label": "unknown", "in_table": false, "difficulty": "ambiguous", "note": "bare issuer decline with no reason carried; not confidently separable"}
+{"id": "ec035", "rail": "card", "code": "payment_timeout", "label": "technical", "in_table": false, "difficulty": "clean", "note": "timeout is infrastructure"}
+{"id": "ec036", "rail": "card", "code": "international_txn_not_allowed", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "near-duplicate of an in-table code, phrased differently"}
+{"id": "ec037", "rail": "card", "code": "pin_incorrect", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "needs customer input, not a retry"}
+{"id": "ec038", "rail": "upi_autopay", "code": "mandate_paused", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "no active mandate to debit"}
+{"id": "ec039", "rail": "upi_autopay", "code": "mandate_expired", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "mandate lapsed; needs re-registration"}
+{"id": "ec040", "rail": "upi_autopay", "code": "payer_psp_unavailable", "label": "technical", "in_table": false, "difficulty": "clean", "note": "phrasing variant of psp_app_unavailable"}
+{"id": "ec041", "rail": "upi_autopay", "code": "vpa_invalid", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "handle no longer resolves"}
+{"id": "ec042", "rail": "upi_autopay", "code": "upi_txn_limit_exceeded", "label": "soft_decline", "in_table": false, "difficulty": "clean", "note": "per-day cap; resets, so retryable"}
+{"id": "ec043", "rail": "upi_autopay", "code": "remitter_bank_offline", "label": "technical", "in_table": false, "difficulty": "clean", "note": "phrasing variant of bank_server_down"}
+{"id": "ec044", "rail": "upi_autopay", "code": "debit_frozen_account", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "account frozen; retry is pointless"}
+{"id": "ec045", "rail": "upi_autopay", "code": "collect_expired", "label": "soft_decline", "in_table": false, "difficulty": "clean", "note": "customer did not approve in time; a later attempt can succeed"}
+{"id": "ec046", "rail": "enach", "code": "account_frozen", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "retry cannot clear a freeze"}
+{"id": "ec047", "rail": "enach", "code": "mandate_expired", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "same concept as mandate_cancelled, different wording"}
+{"id": "ec048", "rail": "enach", "code": "signature_mismatch", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "mandate registration is defective; needs re-registration"}
+{"id": "ec049", "rail": "enach", "code": "account_dormant", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "needs customer action at the bank"}
+{"id": "ec050", "rail": "enach", "code": "no_such_account", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "phrasing variant of invalid_account"}
+{"id": "ec051", "rail": "enach", "code": "drawer_deceased", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "must stop; a dunning ladder here is the worst possible outcome"}
+{"id": "ec052", "rail": "enach", "code": "bank_not_participating", "label": "hard_decline", "in_table": false, "difficulty": "clean", "note": "rail unavailable for this bank; needs a different instrument"}
+{"id": "ec053", "rail": "enach", "code": "funds_insufficient", "label": "soft_decline", "in_table": false, "difficulty": "clean", "note": "word-order variant of an in-table code"}
+{"id": "ec054", "rail": "card", "code": "EXPIRED_CARD", "label": "hard_decline", "in_table": false, "difficulty": "adversarial", "note": "uppercase variant of an in-table code; lookup is exact-match"}
+{"id": "ec055", "rail": "card", "code": "Insufficient_Funds", "label": "soft_decline", "in_table": false, "difficulty": "adversarial", "note": "mixed case variant of an in-table code"}
+{"id": "ec056", "rail": "upi_autopay", "code": " npci_timeout ", "label": "technical", "in_table": false, "difficulty": "adversarial", "note": "whitespace-padded variant of an in-table code"}
+{"id": "ec057", "rail": "card", "code": "insufficient-funds", "label": "soft_decline", "in_table": false, "difficulty": "adversarial", "note": "hyphen instead of underscore"}
+{"id": "ec058", "rail": "card", "code": "", "label": "unknown", "in_table": false, "difficulty": "adversarial", "note": "empty code; nothing to classify"}
+{"id": "ec059", "rail": "card", "code": "ERR", "label": "unknown", "in_table": false, "difficulty": "adversarial", "note": "truncated beyond recovery"}
+{"id": "ec060", "rail": "upi_autopay", "code": "U69", "label": "unknown", "in_table": false, "difficulty": "adversarial", "note": "bare NPCI response code with no narration; not resolvable without a code book"}

@@ -46,7 +46,7 @@ Judges will encounter this as a 5-minute screen recording plus a repo. Ops users
 - Three revenue-at-risk sources on three distinct compliance regimes: failed payment, abandoned checkout (not a debt — one nudge, no ladder), overdue MSMED receivable.
 - Two-tier classification: rule table on clean error codes, self-consistency LLM ensemble across three *framings* on free-text bank narration. Every failure path resolves to `UNKNOWN` → `escalate_human`; inert without an API key.
 - Signature-verified webhooks (HMAC-SHA256 over the raw body) and idempotent Razorpay Payment Links.
-- **Not built:** `retry_charge` and `request_new_mandate` raise rather than call an unverified Razorpay API; off-policy evaluation is unimplemented; voice decides lawfulness and writes the script but does not dial; the LLM classifier's thresholds are reasoned, not fitted against labelled data.
+- **Not built:** `retry_charge` and `request_new_mandate` raise rather than call an unverified Razorpay API; off-policy evaluation is unimplemented; voice decides lawfulness and writes the script but does not dial; the LLM tier cannot be scored without credentials and the eval set is hand-authored rather than sampled from production, so the ensemble thresholds remain reasoned rather than fitted.
 
 ## Brand Commitments
 
@@ -61,7 +61,8 @@ All figures come from a synthetic simulation, and this must never be presented a
 - Compliance invariants measured on executed actions, currently **6/6 passing**, asserted in CI against 300 payments driven through the full pipeline.
 - Learned bandit posteriors that demonstrably recover a hidden time-of-day ground truth the model was never told.
 - Replicated ablation, 400 payments × 12 seeds: full system vs fixed-schedule baseline, **mean net delta +₹5,482, 95% CI [−27,996, +38,959], 5/12 seeds improved — the CI includes zero, so the effect is not established at this n.**
-- **180 passing tests.**
+- **204 passing tests.**
+- Classifier precision/recall against a labelled set (`eval/`): precision 1.000 wherever the rule tier makes a claim, **0 action-changing errors**, 72% of undefined codes safely escalated. The set is hand-authored, not production traffic — it measures conformance to spec, never live accuracy.
 
 **The flat ablation result is the honest one and must not be "corrected" upward.** An
 earlier version of this file claimed +₹208,373 with a CI excluding zero and 11/12 seeds

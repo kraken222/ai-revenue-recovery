@@ -68,8 +68,33 @@ CATEGORY_ALLOWED_ACTIONS: dict[Category, list[str]] = {
 }
 
 
+def normalise_code(error_code: str) -> str:
+    """Fold the formatting variance a real PSP feed carries, before lookup.
+
+    This was an exact dict match, and `scripts/eval_classifier.py` caught what that
+    costs: `EXPIRED_CARD`, `Insufficient_Funds`, ` npci_timeout ` and
+    `insufficient-funds` all missed the table and fell through to human review. The
+    failure was *safe* — a miss becomes UNKNOWN and escalates, never a guess — but it
+    spends an operator on a case a fold would have resolved, and a PSP that starts
+    upper-casing its codes would silently move most of its traffic to the review queue
+    without a single test going red.
+
+    Deliberately conservative: case, surrounding whitespace, and the hyphen/underscore
+    and space/underscore splits. It does not stem, fuzzy-match or edit-distance, because
+    a near-miss between two codes that genuinely differ is exactly the case that must
+    reach a human rather than be coerced into the closest-looking rule.
+    """
+    return "_".join(error_code.strip().lower().replace("-", " ").replace("_", " ").split())
+
+
+_NORMALISED: dict[Rail, dict[str, Category]] = {
+    rail: {normalise_code(code): category for code, category in codes.items()}
+    for rail, codes in _TAXONOMY.items()
+}
+
+
 def lookup(rail: Rail, error_code: str) -> Category | None:
-    return _TAXONOMY.get(rail, {}).get(error_code)
+    return _NORMALISED.get(rail, {}).get(normalise_code(error_code))
 
 
 def error_codes_for_rail(rail: Rail) -> list[str]:
