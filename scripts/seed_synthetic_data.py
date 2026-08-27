@@ -483,6 +483,17 @@ def simulate_promises(db, t: datetime) -> int:
             FailedPayment.control_group.is_(False),
         )
         .distinct()
+        # Defensive, and honestly labelled as such: with the settlement draw now keyed
+        # on the promise's own date rather than on its insertion sequence, row order no
+        # longer changes any outcome, and removing this line does not make the world
+        # non-deterministic (verified by reverting it against
+        # tests/test_simulation_determinism.py). It is kept because SELECT DISTINCT
+        # dedupes through a temporary structure keyed on the selected columns --
+        # `failed_payments.id` among them, a uuid4 and so unseeded -- which means row
+        # order here is genuinely arbitrary between runs. Any future draw that keys on
+        # creation order would silently inherit that arbitrariness. Ordering on the
+        # synthetic payment id costs nothing and closes the door.
+        .order_by(FailedPayment.razorpay_payment_id)
     ).all()
 
     made = 0
@@ -507,10 +518,32 @@ def _settle_matured_promises(db, t: datetime) -> int:
         )
     ).all()
     for promise in matured:
-        kept = world_draw(promise.failed_payment_id, "promisekept", promise.id) < PROMISE_KEPT_RATE
+        payment = db.get(FailedPayment, promise.failed_payment_id)
+        # Key the draw on the SYNTHETIC payment id, as every other world_draw does.
+        # This read `promise.failed_payment_id`, which is the internal primary key --
+        # a uuid4, and so not seeded by `random.seed`. That made whether a promise was
+        # kept genuinely random per run rather than a fixed property of the world, and
+        # it broke common random numbers precisely where the ablation depends on them:
+        # two policies compared on "the same" batch were silently facing different
+        # promise outcomes. It surfaced as the fixed-schedule baseline drifting by a
+        # few hundred rupees between runs of an otherwise fully pinned harness.
+        # Keyed on the promise's own date rather than on `promise.id`. The id is an
+        # insertion sequence number, so keying on it makes the world's answer depend on
+        # the order promises happened to be created in -- the same class of bug as
+        # keying on the uuid, just one step removed. A promised date is a property of
+        # the promise itself and holds whatever order the rows were written in.
+        kept = (
+            world_draw(
+                payment.razorpay_payment_id,
+                "promisekept",
+                promise.promised_for.isoformat(),
+            )
+            < PROMISE_KEPT_RATE
+            if payment
+            else False
+        )
         promises.settle_promises(db, promise.failed_payment_id, paid=kept, now=t)
         if kept:
-            payment = db.get(FailedPayment, promise.failed_payment_id)
             if payment and payment.status not in (
                 PaymentStatus.RECOVERED.value,
                 PaymentStatus.LOST.value,

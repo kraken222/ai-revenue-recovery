@@ -355,18 +355,32 @@ python -m scripts.ablation 400 12
 
 | config | recovery | lift vs control | contacts | churned | net ₹ (mean ± sd) |
 |---|---|---|---|---|---|
-| fixed-schedule | 88.1% | +49.8% | 150 | 2.8 | 2,199,444 ± 441,194 |
+| fixed-schedule | 88.1% | +49.8% | 150 | 2.8 | 2,199,027 ± 441,473 |
 | +bandit | 88.2% | +49.9% | 143 | 2.5 | 2,198,749 ± 445,288 |
 | +ev-gate | 75.3% | +37.0% | 121 | 1.8 | 2,202,464 ± 428,131 |
 | **full** | 84.6% | +46.3% | 138 | 2.3 | **2,205,009 ± 425,806** |
 
 ```
 full vs fixed-schedule, paired by seed:
-  mean net delta  Rs.+5,565  (sd 58,009, se 16,746)
-  95% CI          Rs.-27,927 .. Rs.+39,057
+  mean net delta  Rs.+5,982  (sd 57,942, se 16,727)
+  95% CI          Rs.-27,471 .. Rs.+39,435
   seeds improved  5/12
   CI includes zero - effect not established at this n
 ```
+
+Those figures are now **exactly reproducible** — same seeds, same numbers, run to run and
+machine to machine. They were not, and finding out why mattered more than the drift
+itself. The baseline moved by a few hundred rupees between runs of a harness that was
+otherwise fully pinned, because promise settlement drew its outcome from
+`promise.failed_payment_id` — the internal primary key, which is a `uuid4` and so is
+untouched by `random.seed`. One draw per run, invisible to every existing test because
+each individual assertion still held; only the aggregate moved. That is precisely the
+failure mode common random numbers exist to prevent: the paired confidence interval
+above was quietly counting world variance as policy effect. The draw is now keyed on the
+synthetic payment id and the promise's own date, and
+[`tests/test_simulation_determinism.py`](tests/test_simulation_determinism.py) pins it by
+running the same batch under two different uuid streams — a test written only after
+confirming it fails when the fix is reverted.
 
 **The learned machinery does not pay for itself on this workload, and that is the most
 interesting result in the project.**
@@ -396,7 +410,7 @@ future period — and badly wrong for a one-off invoice, where a buyer settling 
 cancelling anything. The gate was therefore refusing to chase the single most valuable
 recoverable items in the batch, and the ablation measured that as a real −₹74,886 harm
 with a CI excluding zero. LTV is now a property of the source (12× subscription, 2×
-invoice, 0× abandoned checkout), which moved the result to the flat +₹5,565 above.
+invoice, 0× abandoned checkout), which moved the result to the flat +₹5,982 above.
 
 The honest reading:
 
