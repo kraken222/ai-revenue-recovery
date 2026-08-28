@@ -441,7 +441,7 @@ cp .env.example .env
 Everything runs with zero external services: SQLite by default, and a `DryRunGateway` stands in whenever Razorpay credentials are absent, so the full pipeline is demoable offline.
 
 ```bash
-python -m pytest tests/ -q                    # 204 tests, all offline
+python -m pytest tests/ -q                    # 226 tests, all offline
 python -m scripts.seed_synthetic_data 300     # full pipeline + causal lift + learned arms
 python -m scripts.ablation 400 12             # does the learned machinery earn its keep?
 python -m scripts.eval_classifier             # classifier precision/recall vs eval/
@@ -600,7 +600,7 @@ clones into.
 Stated plainly, because a system that hides these is worse than one that names them.
 
 - **The world is synthetic.** Ground-truth recovery and churn probabilities are invented. The bandit demonstrably learns the hidden structure and the ablation is internally valid, but no number here is a claim about real Razorpay traffic.
-- **`retry_charge` is not wired to a verified API.** Only Payment Links is a confirmed Razorpay call. Razorpay runs its own dunning on subscriptions, so forcing a retry may not be the right primitive at all — this needs reconciling against live docs before go-live, and the code raises rather than pretending otherwise.
+- **`retry_charge` is built to a documented contract but never executed end to end.** It is now a real two-step call — `POST /v1/orders`, then `POST /v1/payments/create/recurring` with `{email, contact, amount, currency, order_id, customer_id, token, recurring: true}` — confirmed against Razorpay's docs for [UPI Autopay](https://razorpay.com/docs/api/payments/recurring-payments/upi/create-subsequent-payments) and [eMandate](https://razorpay.com/docs/api/payments/recurring-payments/emandate/create-subsequent-payments), one endpoint serving both mandate rails, and exposed by the pinned SDK as `client.payment.createRecurring`. What remains unverified is the execution: the call needs a `token` minted when a real customer completes a UPI Autopay or eNACH authorisation, which cannot be fabricated, and charging an invented token would only prove that Razorpay rejects invented tokens. So: request shape pinned by tests, live round trip outstanding. `request_new_mandate` is still genuinely unimplemented — it is a multi-step registration flow, not one call, and it raises.
 - **`churn_risk_per_contact` is assumed, not calibrated.** It sets the breakeven recovery probability, so the EV gate is only as good as this number. It needs real cohort data.
 - **The classifier has never been evaluated against *real* labelled data.** There is now a labelled set and a harness ([`eval/`](eval/), [`scripts/eval_classifier.py`](scripts/eval_classifier.py)), and it earns a real number for the rule tier — but every row in it is **hand-authored against published error-code documentation, not sampled from production webhooks**, so it measures conformance to spec, not accuracy on live traffic. Two consequences stand: the LLM tier cannot be scored at all without credentials (and is deliberately *not* scored against the offline stub, which would measure the fixture), and "is 2-of-3 agreement the right bar?" is still an empirical question the thresholds are reasoned into rather than fitted to.
 - **No off-policy evaluation before promoting a policy.** [Adyen's approach](https://arxiv.org/html/2501.10470v1) is the right reference. Today a bandit update takes effect immediately.

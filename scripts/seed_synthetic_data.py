@@ -153,6 +153,15 @@ def _random_payment_payload(i: int, t: datetime) -> dict:
         "error_description": narration or f"synthetic {error_code} on {rail.value}",
         "issuer_id": random.choice(ISSUERS),
         "mandate_revoked": mandate_revoked,
+        # Only the mandate rails carry a token: on cards Razorpay owns the retry and the
+        # merchant holds nothing to debit. Modelling that here rather than giving every
+        # payment a token keeps the simulation honest about which rail can actually be
+        # charged, and exercises `retry_charge`'s refusal path on the ones that cannot.
+        "mandate_token": (
+            f"token_synth_{i:05d}" if rail in (Rail.UPI_AUTOPAY, Rail.ENACH) else None
+        ),
+        "customer_email": f"customer{i % 50:04d}@example.com",
+        "customer_contact": f"+9198{i % 100000:05d}00",
         "source": "failed_payment",
     }
 

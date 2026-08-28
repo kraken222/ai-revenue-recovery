@@ -13,8 +13,21 @@ What is and is not a real Razorpay call, checked against the docs rather than as
   does not exist. Compliance routes cards here; the honest action is to wait and read
   the outcome webhook. https://razorpay.com/docs/subscriptions/payment-retries/
 - `retry_charge` -> only reachable on UPI Autopay / eNACH, where the merchant holds a
-  token and genuinely initiates the debit. Still marked unverified: the exact
-  recurring-charge call needs confirming against the live account before go-live.
+  token and genuinely initiates the debit. Now a real call, and the docs settle the
+  question the earlier comment left open: the same endpoint serves both mandate rails.
+  Two steps, because the recurring endpoint takes an order_id and will not mint one:
+  `POST /v1/orders`, then `POST /v1/payments/create/recurring` with
+  {email, contact, amount, currency, order_id, customer_id, token, recurring: true}.
+  Exposed by the pinned SDK as `client.payment.createRecurring`.
+  https://razorpay.com/docs/api/payments/recurring-payments/upi/create-subsequent-payments
+  https://razorpay.com/docs/api/payments/recurring-payments/emandate/create-subsequent-payments
+
+  What is still NOT verified, and the distinction matters: the request shape is
+  confirmed against the docs and the SDK, but no call has been executed against a live
+  mandate, because that needs a customer to complete a real UPI Autopay or eNACH
+  authorisation to mint a token. So this is "built to a documented contract, untested
+  end to end", not "known to work". `scripts/verify_razorpay.py` says which of the two
+  it can check for you.
 - `request_new_mandate` -> the documented flow is customer -> order with token details
   -> authorisation payment, which returns a new token_id. Not a single call, so it
   stays unimplemented rather than faked.
@@ -30,7 +43,7 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.config import settings
 from app.decision_engine import DecisionOutcome
-from app.models import ActionLog, FailedPayment, PaymentStatus
+from app.models import ActionLog, FailedPayment, PaymentStatus, Rail
 from app.timeutil import as_aware, utcnow
 
 logger = logging.getLogger(__name__)
@@ -56,6 +69,18 @@ class DryRunGateway:
         return GatewayResult(outcome="pending", ref=f"dryrun_mandate_{payment.id[:8]}")
 
     def retry_charge(self, payment: FailedPayment) -> GatewayResult:
+        # Mirrors the real gateway's preconditions rather than succeeding
+        # unconditionally. A dry run that debits a mandate the live path would refuse
+        # teaches the offline demo the wrong shape of the system, and would hide a
+        # missing token until the first run with credentials.
+        if payment.rail == Rail.CARD.value:
+            raise UnsupportedRailAction(
+                "retry_charge is not a card action; Razorpay owns card retries"
+            )
+        if not payment.mandate_token:
+            return GatewayResult(
+                outcome="failed", ref=None, message="cannot charge mandate: missing mandate_token"
+            )
         logger.info("[dry-run] would retry charge for %s", payment.razorpay_payment_id)
         return GatewayResult(outcome="pending", ref=f"dryrun_retry_{payment.id[:8]}")
 
@@ -63,6 +88,16 @@ class DryRunGateway:
 
 class UnsafeCredentials(Exception):
     """Live credentials in a system whose data is synthetic."""
+
+
+class UnsupportedRailAction(Exception):
+    """An action that does not exist on this rail, as opposed to one that failed.
+
+    Distinct from a GatewayResult(outcome="failed") on purpose: a failure is something
+    the pipeline may sensibly re-attempt, while this means the caller built a decision
+    that should have been unreachable. It should surface loudly rather than be absorbed
+    into the retry accounting.
+    """
 
 
 class RazorpayGateway:
@@ -133,13 +168,95 @@ class RazorpayGateway:
         raise NotImplementedError("request_new_mandate needs a verified Razorpay API call")
 
     def retry_charge(self, payment: FailedPayment) -> GatewayResult:
-        # Only reachable on UPI Autopay / eNACH — compliance routes cards to
-        # monitor_gateway_retry, because Razorpay owns card retries and manual charge
-        # of a domestic card is unsupported. The mandate-rail recurring-charge call
-        # still needs verifying against a live account, so this refuses rather than
-        # guessing a method name.
-        raise NotImplementedError(
-            "retry_charge: verify the mandate-rail recurring-charge API before enabling"
+        """Merchant-initiated debit against an existing mandate.
+
+        Two calls, in this order, because the recurring endpoint takes an `order_id`
+        and will not mint one for you:
+
+            POST /v1/orders                     -> order_id
+            POST /v1/payments/create/recurring  -> razorpay_payment_id
+
+        Same endpoint for UPI Autopay and eNACH; the rail is already encoded in the
+        token. Cards never reach here -- compliance routes them to
+        `monitor_gateway_retry` -- and the guard below is defence in depth rather than
+        a second opinion.
+        """
+        if payment.rail == Rail.CARD.value:
+            # Not an error condition to be retried: on cards this action should not
+            # exist. Razorpay runs its own dunning and manual charge of a domestic card
+            # is unsupported, so issuing one would either duplicate an attempt the
+            # gateway is already making or call an API that isn't there.
+            raise UnsupportedRailAction(
+                "retry_charge is not a card action; Razorpay owns card retries"
+            )
+
+        missing = [
+            field
+            for field in ("mandate_token", "customer_email", "customer_contact")
+            if not getattr(payment, field, None)
+        ]
+        if missing:
+            # A hard refusal, not a retryable failure. Without a token there is no
+            # mandate to debit, and the correct recovery path is re-registration --
+            # which is a different action, chosen by compliance, not something to
+            # improvise here.
+            return GatewayResult(
+                outcome="failed",
+                ref=None,
+                message=f"cannot charge mandate: missing {', '.join(missing)}",
+            )
+
+        try:
+            order = self._client.order.create(
+                {
+                    "amount": payment.amount_paise,
+                    "currency": payment.currency,
+                    # Stable per debt AND per attempt: a redelivered webhook re-uses the
+                    # receipt, while a genuine second attempt gets its own. Note that
+                    # Razorpay only rejects duplicate receipts when the account has
+                    # receipt uniqueness enabled, so this narrows the window rather than
+                    # closing it -- the pipeline's attempt accounting is what actually
+                    # prevents a double charge.
+                    "receipt": f"{self.reference_for(payment)}-{payment.retry_count}",
+                    "notes": {
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "internal_id": payment.id,
+                    },
+                }
+            )
+        except Exception as exc:
+            return self._classify_failure(exc)
+
+        try:
+            charge = self._client.payment.createRecurring(
+                {
+                    "email": payment.customer_email,
+                    "contact": payment.customer_contact,
+                    "amount": payment.amount_paise,
+                    "currency": payment.currency,
+                    "order_id": order.get("id"),
+                    "customer_id": payment.customer_id,
+                    "token": payment.mandate_token,
+                    "recurring": True,
+                    "description": f"Recovery charge for {payment.razorpay_payment_id}",
+                    "notes": {
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "internal_id": payment.id,
+                        "attempt": str(payment.retry_count),
+                    },
+                }
+            )
+        except Exception as exc:
+            return self._classify_failure(exc)
+
+        # `pending`, never `success`: the endpoint returns a payment id, not a settled
+        # outcome. Whether the bank actually honoured the debit arrives later on the
+        # outcome webhook, and calling it success here would close the loop on a result
+        # nobody has yet reported -- and would feed the bandit a reward it never earned.
+        return GatewayResult(
+            outcome="pending",
+            ref=charge.get("razorpay_payment_id"),
+            message=f"order {order.get('id')}",
         )
 
 

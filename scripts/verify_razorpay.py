@@ -115,6 +115,21 @@ def main() -> int:
     print("The executor can execute. A real Payment Link was created in test mode,")
     print("read back with the amount and reference intact, and then cancelled.")
     print(f"\nlink id for the record: {result.ref}")
+
+    banner("What this script deliberately does NOT verify")
+    print("`retry_charge` - the merchant-initiated debit on UPI Autopay / eNACH.")
+    print()
+    print("The request shape is confirmed against the docs and the pinned SDK:")
+    print("  POST /v1/orders                     -> order_id")
+    print("  POST /v1/payments/create/recurring  -> razorpay_payment_id")
+    print("  (client.payment.createRecurring, same endpoint for both mandate rails)")
+    print()
+    print("But executing it needs a `token` minted when a real customer completes a UPI")
+    print("Autopay or eNACH authorisation. That cannot be fabricated here, and issuing a")
+    print("charge against an invented token would only ever prove that Razorpay rejects")
+    print("invented tokens. So the honest status is 'built to a documented contract,")
+    print("not executed end to end' - tests/test_recurring_charge.py pins the request")
+    print("shape, and this line is the part still outstanding.")
     return 0
 
 

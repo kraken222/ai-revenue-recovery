@@ -95,6 +95,16 @@ class FailedPayment(Base):
     error_description: Mapped[str] = mapped_column(String, default="")
     issuer_id: Mapped[str | None] = mapped_column(String, nullable=True)  # BIN / bank identifier
 
+    # What Razorpay needs to actually debit an existing mandate. `POST
+    # /v1/payments/create/recurring` requires token + customer_id + order_id + email +
+    # contact, so without these a merchant-initiated charge cannot be constructed at
+    # all -- which is why `retry_charge` refuses rather than guessing when they are
+    # absent. Nullable because only the mandate rails have a token: on cards Razorpay
+    # owns the retry and there is nothing here for us to debit.
+    mandate_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    customer_email: Mapped[str | None] = mapped_column(String, nullable=True)
+    customer_contact: Mapped[str | None] = mapped_column(String, nullable=True)
+
     mandate_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     # WHEN consent was withdrawn, not just whether. Without this, "did we contact
     # after revocation?" can only be approximated as "does a revoked payment have any

@@ -86,6 +86,12 @@ def ingest_event(
         ),
         agreed_credit_days=p.get("agreed_credit_days"),
         supplier_is_msme=p.get("supplier_is_msme", False),
+        # A real integration derives these from the subscription/token entity and the
+        # merchant's own customer record; Razorpay does not hand them back on the
+        # failure webhook. Absent, `retry_charge` refuses rather than improvising.
+        mandate_token=p.get("mandate_token"),
+        customer_email=p.get("customer_email"),
+        customer_contact=p.get("customer_contact"),
         mandate_revoked=p.get("mandate_revoked", False),
         # Already revoked when we first saw it, so every subsequent contact is a breach.
         mandate_revoked_at=now if p.get("mandate_revoked", False) else None,

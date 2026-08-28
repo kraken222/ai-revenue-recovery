@@ -268,7 +268,8 @@ Every one of these is exercised by the test suite.
 | Live (`rzp_live_`) credentials | Key prefix check | `UnsafeCredentials` raised — every amount here is synthetic |
 | No Razorpay credentials | Config absent | `DryRunGateway`; full pipeline still runs offline |
 | Issuer-wide outage | Rolling-window decline rate | Circuit breaker opens; retries back off |
-| Unverified API (`retry_charge`, `request_new_mandate`) | — | `NotImplementedError` — raises rather than faking success |
+| Mandate charge with no token / on a card | precondition check | Refuses before any API call — no order left dangling |
+| Unimplemented API (`request_new_mandate`) | — | `NotImplementedError` — raises rather than faking success |
 | Human tries to authorise a forbidden action | Compliance re-run on write-back | `409`, refusal written to the trail as `actor: human` |
 
 The last row is the load-bearing one. If clicking a button could authorise an action
@@ -394,7 +395,7 @@ uvicorn app.main:app --reload              # console at /console, register at /
 Named plainly, because a system that hides these is worse than one that admits them.
 Full list in [README § Known limitations](README.md#known-limitations).
 
-- **`retry_charge` is not wired to a verified API.** Only Payment Links is a confirmed
+- **`retry_charge` is built to a documented contract but never executed end to end.** The two-step `POST /v1/orders` → `POST /v1/payments/create/recurring` shape is confirmed against the docs and pinned by tests, but executing it needs a token from a real customer authorisation. Only Payment Links is a confirmed
   Razorpay call. On the mandate rails the central recovery action raises rather than
   pretending.
 - **No off-policy evaluation before a policy is promoted.** A bandit update takes
