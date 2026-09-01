@@ -149,8 +149,12 @@ line — read three:
 > could authorise what the rules forbid, every rule in the compliance module would be
 > advisory.
 >
-> And where I couldn't verify a Razorpay API, the code raises instead of pretending.
-> `retry_charge` is not wired. That's a limitation, and it's in the README.
+> And I separate "verified" from "built". The mandate-rail charge is a real call now —
+> order, then create-recurring, the documented endpoint — but I've never run it against
+> a live mandate, because that needs a token from a real customer authorisation. So the
+> tests pin the request shape and the README says the round trip is outstanding.
+> `request_new_mandate` is a multi-step registration flow, not one call, so it still
+> raises rather than pretending.
 
 ## 4:25 – 4:45 · Close
 
