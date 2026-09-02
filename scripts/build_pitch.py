@@ -52,6 +52,19 @@ def ffmpeg() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
+# Spoken forms for tokens a speech engine reliably mangles. Applied only to the text
+# handed to TTS -- PITCH_NARRATION.md keeps the written form, which is what a human
+# reader wants on a teleprompter. Deliberately short: every entry here is a token that
+# was actually wrong when read aloud, not a guess about what might be.
+SPOKEN = [
+    (r"\b5xx\b", "five-hundred-class"),
+    (r"\b409\b", "four-oh-nine"),
+    (r"\bHMAC\b", "H-MAC"),
+    (r"\bAFA\b", "A-F-A"),
+    (r"\beNACH\b", "e-NACH"),
+]
+
+
 def parse_sections() -> list[dict]:
     text = SCRIPT.read_text(encoding="utf-8")
     sections = []
@@ -65,6 +78,8 @@ def parse_sections() -> list[dict]:
         body = re.sub(r"\*(.+?)\*", r"\1", body, flags=re.S)
         body = re.sub(r"[ \t]*\n[ \t]*", " ", body)
         body = re.sub(r"\s{2,}", " ", body).strip()
+        for pattern, spoken in SPOKEN:
+            body = re.sub(pattern, spoken, body)
         sections.append(
             {
                 "slug": re.sub(r"[^a-z0-9]+", "_", m.group(5).lower()).strip("_"),
