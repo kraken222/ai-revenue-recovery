@@ -24,12 +24,25 @@ Have these open as tabs / windows, in this order, so no shot needs a "let me jus
 4. `ARCHITECTURE.md` on GitHub (diagrams rendered — check they render *before* you hit record).
 5. The ablation output, already run and scrolled to the paired-CI block.
 
-Pre-run so nothing is waiting on a process during the take:
+Pre-run so nothing is waiting on a process during the take. The `rm` matters — a stale
+database carries test rows from earlier work into the register, on camera:
 
 ```bash
-python -m scripts.seed_synthetic_data 300
-python -m scripts.ablation 400 12 > /tmp/ablation.txt
+rm recovery.db && python -m scripts.seed_synthetic_data 300
 ```
+
+```bash
+python -m scripts.ablation 400 12 > ablation.txt
+```
+
+Start the server in its own terminal and leave it running:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Word-for-word narration is in [PITCH_NARRATION.md](PITCH_NARRATION.md) — 677 words,
+4:40 at a natural pace. Read that; use this file for what to put on screen.
 
 Record at 1920×1080. Terminal font large enough to read at half-scale — judges may watch
 in a small window. Dashboard is dense; zoom to 125% before recording.
@@ -78,12 +91,38 @@ Do not rush this. The next 30 seconds are the whole differentiator.
 > gate has exactly one write it can make — downgrade to stop. So every money action stays
 > explainable and bounded even though part of the policy is learned.
 
-**Cut to `/console`.** Send one webhook. Let the chain stream in without narrating every
-line — read three:
+**Cut to the terminal, then `/console`.** One command, and the chain prints:
 
-> Classified as a soft decline by rule. Compliance returns a retry window. The bandit
-> picks the 6am slot — and here's the actual Thompson draw that chose it, not a
-> confidence score. Then the EV gate prices it and lets it through.
+```bash
+python -m scripts.demo_webhook
+```
+
+The payment id is pinned to one that hashes into the *treated* arm. That matters: a
+randomly-chosen id lands in the holdout about fifteen percent of the time, and a control
+payment's chain correctly ends in `control_no_action` — which is right, and a dead
+demo. Fired live it reads:
+
+```
+ingestion       upi_autopay insufficient_balance
+classification  soft_decline (rule)
+compliance      COMP-006-compliant-retry-window -> retry_at
+guardrail       retry_at
+escalation      rung 1 reminder
+bandit          slot 18:00 - posterior 44%
+economics       EV Rs.346 - p=44.4% - positive_expected_value
+decision        retry_at
+execution       scheduled, not yet due
+```
+
+**Do not promise a specific slot.** The bandit is Thompson Sampling — it *draws*, so the
+slot and posterior change every run. Say "the bandit draws a slot, and that draw is in
+the audit trail" and read whatever came up. If it draws a low-posterior slot, that is
+exploration working, and saying so is stronger than pretending it always picks the best
+one.
+
+The "it learned midnight is best" claim belongs to the **aggregate posteriors on the
+dashboard**, not to one live draw. Keep those two moments separate — conflating them is
+the one place this demo could overclaim.
 
 ## 2:05 – 2:45 · Where AI is, and where it deliberately isn't
 
