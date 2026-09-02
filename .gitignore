@@ -16,3 +16,8 @@ dist/
 # Scratch
 *.log
 .DS_Store
+
+# Pitch video build artifacts: recorded footage, extracted frames, mermaid bundle.
+# Not product code, and large; the script that produces them is scripts/record_pitch.py.
+pitch_build/
+ablation.txt
