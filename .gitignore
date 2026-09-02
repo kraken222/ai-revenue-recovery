@@ -8,10 +8,10 @@ venv/
 node_modules/
 dist/
 
-# Impeccable live-mode runtime state (machine-local, not part of the design record).
-.impeccable/live/
-.impeccable/review/
-.impeccable/mocks/
+# Local editor/agent tooling state. Machine-local, nothing to do with the product,
+# and it has no business in a public repo.
+.claude/
+.impeccable/
 
 # Scratch
 *.log
