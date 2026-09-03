@@ -46,16 +46,26 @@ REPO = "https://github.com/kraken222/ai-revenue-recovery"
 
 WIDTH, HEIGHT = 1920, 1080
 
-# Section budgets, in seconds, matching PITCH_NARRATION.md exactly. Changing one here
-# without changing it there desynchronises the voice from the picture.
+# How long each shot is held, in seconds.
+#
+# These are NOT the nominal timings in PITCH_NARRATION.md, and the difference is the
+# point. A first take at the nominal budgets left three sections with less room than
+# their words need at a natural pace -- "what breaks" was 5.3s short -- because page
+# loads and settle waits do not divide evenly across sections. The fix is a rebalance,
+# not an extension: there was 19.3s of surplus in the roomy sections against 8.8s of
+# deficit in the tight ones, and the take was already 4:50 against a five-minute
+# ceiling, so buying room by making the video longer was not available.
+#
+# Re-derive these by running the take, then reading pitch_build/cues.json: room for a
+# section is the gap to the next cue, and it must exceed words / 145 * 60.
 TIMELINE = {
-    "problem": 35,
-    "india": 40,
-    "architecture": 50,
-    "ai_placement": 40,
-    "measurement": 65,
-    "failures": 35,
-    "close": 20,
+    "problem": 34,       # 35 -> 31 overshot; 34 leaves ~1.8s spare
+    "india": 43,         # was 40, was 0.5s short
+    "architecture": 49,  # 50 -> 46 overshot; 49 leaves ~1.6s spare
+    "ai_placement": 43,  # 40 left only 0.4s spare
+    "measurement": 69,   # was 65, was 3.0s short
+    "failures": 41,      # was 35, was 5.3s short - the worst of them
+    "close": 19,         # was 20, had 4.4s spare
 }
 
 TERMINAL_CSS = """
@@ -257,6 +267,23 @@ class Recorder:
         self.page = page
         self.speed = speed
         self.spent = 0.0
+        # Playwright records in real time from context creation, so wall-clock elapsed
+        # since then IS the timestamp in the finished file.
+        self.t0 = time.monotonic()
+        self.cues: list[dict] = []
+
+    def mark(self, section: str) -> None:
+        """Record where a section actually begins in the video.
+
+        The scripted budget and the real cut point are not the same thing: page loads
+        and settle waits push each shot later than the timeline says. Narration placed
+        at nominal timestamps would drift against the picture by a few seconds by the
+        end. Emitting the true offsets lets the mux place each clip exactly where its
+        shot starts, so a section can never be spoken over the previous shot.
+        """
+        at = time.monotonic() - self.t0
+        self.cues.append({"section": section, "at": round(at, 2)})
+        print(f"  [{int(at // 60)}:{int(at % 60):02d}] {section}")
 
     def hold(self, seconds: float) -> None:
         self.spent += seconds
@@ -342,7 +369,7 @@ def record(speed: float, online: bool) -> Path:
         r = Recorder(page, speed)
 
         # --- 0:00 the problem -------------------------------------------------
-        print("  [0:00] problem")
+        r.mark("problem")
         r.goto(frames["title"].as_uri(), settle=0.5)
         r.hold(6)
 
@@ -354,7 +381,7 @@ def record(speed: float, online: bool) -> Path:
         r.glide(700, 5)
 
         # --- 0:35 why India breaks it ----------------------------------------
-        print("  [0:35] india")
+        r.mark("india")
         if readme_ok:
             y = r.find("Why the obvious design is wrong in India")
             if y:
@@ -365,7 +392,7 @@ def record(speed: float, online: bool) -> Path:
             r.hold(TIMELINE["india"])
 
         # --- 1:15 architecture, then the live chain ---------------------------
-        print("  [1:15] architecture")
+        r.mark("architecture")
         arch_seconds = 22
         if "diagram" in frames:
             r.goto(frames["diagram"].as_uri(), settle=0.5)
@@ -385,12 +412,12 @@ def record(speed: float, online: bool) -> Path:
         r.hold(TIMELINE["architecture"] - arch_seconds - 2)
 
         # --- 2:05 where the AI is, and isn't ----------------------------------
-        print("  [2:05] ai placement")
+        r.mark("ai_placement")
         r.goto(frames["eval"].as_uri(), settle=2)
         r.hold(TIMELINE["ai_placement"] - 2)
 
         # --- 2:45 measurement, and the flat result ----------------------------
-        print("  [2:45] measurement")
+        r.mark("measurement")
         r.goto(BASE, settle=2)
         r.hold(14)
         y = r.find("COMPLIANCE ASSERTIONS") or 200
@@ -401,7 +428,7 @@ def record(speed: float, online: bool) -> Path:
         r.hold(TIMELINE["measurement"] - 30)
 
         # --- 3:50 what breaks -------------------------------------------------
-        print("  [3:50] failures")
+        r.mark("failures")
         r.goto(f"{BASE}/console", settle=2)
         y = r.find("AWAITING A PERSON") or 0
         if y:
@@ -409,16 +436,28 @@ def record(speed: float, online: bool) -> Path:
         r.hold(TIMELINE["failures"] - 6)
 
         # --- 4:25 close -------------------------------------------------------
-        print("  [4:25] close")
+        r.mark("close")
         if online:
             r.goto(REPO, settle=2)
         else:
             r.goto(BASE, settle=2)
         r.hold(TIMELINE["close"] - 2)
 
-        print(f"\n  scripted duration: {int(r.spent // 60)}:{int(r.spent % 60):02d}")
+        total = time.monotonic() - r.t0
+        print(f"\n  scripted {int(r.spent // 60)}:{int(r.spent % 60):02d}"
+              f"   actual {int(total // 60)}:{int(total % 60):02d}")
         context.close()
         browser.close()
+
+    # The cue sheet is what makes the voice line up. Written after close() so `total`
+    # reflects the whole take, and consumed by scripts/build_pitch.py.
+    import json
+
+    (BUILD / "cues.json").write_text(
+        json.dumps({"duration": round(total, 2), "cues": r.cues}, indent=2),
+        encoding="utf-8",
+    )
+    print(f"  cue sheet: {BUILD / 'cues.json'}")
 
     raw = sorted((BUILD / "raw").glob("*.webm"), key=lambda p: p.stat().st_mtime)
     if not raw:

@@ -109,13 +109,90 @@ def cmd_split() -> int:
         print(f"  {path.name:<34}{s['words']:>4}w  budget {s['budget']:>3}s")
 
     print(f"\n  total budget {total // 60}:{total % 60:02d}")
+
+    cues = load_cues()
+    sheet = write_voiceover_sheet(sections, cues)
+    print(f"\nwrote {sheet}")
     print(
         "\nGenerate speech for each .txt and save it beside the text as the same\n"
-        "basename with a .mp3 extension. Keep the numbering: `mux` orders by filename.\n"
-        "\nUse one voice for all of them, and keep the pace even -- a section read fast\n"
-        "and a section read slow will not line up with a picture cut to fixed budgets."
+        "basename with a .mp3 extension. Keep the numbering: `mux` orders by filename."
     )
+    if not cues:
+        print(
+            "\n! No cues.json yet, so the sheet carries nominal times. Record first\n"
+            "  (python -m scripts.record_pitch) for measured ones."
+        )
     return 0
+
+
+def write_voiceover_sheet(sections: list[dict], cues: dict | None) -> Path:
+    """One page carrying everything needed to cut the voice: the text, the hard limit
+    on each section, and where it lands in the video."""
+    starts = [c["at"] for c in cues["cues"]] if cues else [s["start"] for s in sections]
+    total = cues["duration"] if cues else sum(s["budget"] for s in sections)
+
+    def clock(t: float) -> str:
+        return f"{int(t // 60)}:{t % 60:04.1f}"
+
+    lines = [
+        "# Voiceover sheet",
+        "",
+        f"Video: `pitch_build/pitch_visual.webm` — {clock(total)} at 1920x1080.",
+        "",
+        "**Each clip is placed at an absolute timestamp, not joined end to end.** So a",
+        "section that runs a little long or short only affects itself — it cannot shift",
+        "everything after it. What you must not do is exceed the *room* column, because",
+        "that audio would still be playing after the picture has cut to the next shot.",
+        "",
+        "Settings that matter more than the voice you pick:",
+        "",
+        "- **One voice for all seven.** Switching mid-video reads as an error.",
+        "- **Same stability/similarity settings for all seven**, or the pace drifts",
+        "  between sections and the later ones stop fitting their room.",
+        "- Leave no leading or trailing silence — placement already handles the gaps.",
+        "",
+        "| # | Section | Starts at | Room | Words | File |",
+        "|---|---|---|---|---|---|",
+    ]
+    for i, (s, start) in enumerate(zip(sections, starts), 1):
+        room = (starts[i] - start) if i < len(starts) else total - start
+        lines.append(
+            f"| {i} | {s['title']} | `{clock(start)}` | **{room:.1f}s** | {s['words']} | "
+            f"`{i:02d}_{s['slug']}.mp3` |"
+        )
+
+    lines += ["", "---", ""]
+    for i, (s, start) in enumerate(zip(sections, starts), 1):
+        room = (starts[i] - start) if i < len(starts) else total - start
+        lines += [
+            f"## {i:02d} · {s['title']}",
+            "",
+            f"Starts `{clock(start)}` · must not exceed **{room:.1f}s** · "
+            f"{s['words']} words · save as `{i:02d}_{s['slug']}.mp3`",
+            "",
+            "```",
+            s["text"],
+            "```",
+            "",
+        ]
+
+    lines += [
+        "---",
+        "",
+        "## When all seven exist",
+        "",
+        "```bash",
+        "python -m scripts.build_pitch mux",
+        "```",
+        "",
+        "It prints, per section, where the clip lands and whether it overruns its shot,",
+        "then writes `pitch_build/pitch.mp4`. If a section overruns it says so rather",
+        "than quietly stretching anything.",
+    ]
+
+    path = BUILD / "VOICEOVER.md"
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    return path
 
 
 def duration(path: Path) -> float:
@@ -126,6 +203,22 @@ def duration(path: Path) -> float:
     if not m:
         return 0.0
     return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+
+
+def load_cues() -> dict | None:
+    """Where each section actually starts in the recorded file.
+
+    Written by scripts/record_pitch.py. Without it the only available reference is the
+    nominal timeline, and the two are not the same: page loads and settle waits push
+    each shot a little later than scripted, so by the close the difference is several
+    seconds.
+    """
+    path = BUILD / "cues.json"
+    if not path.exists():
+        return None
+    import json
+
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def cmd_mux() -> int:
@@ -146,32 +239,66 @@ def cmd_mux() -> int:
         print("  Every section needs one, or the voice will run against the wrong picture.")
         return 1
 
-    print("section timing, voice against picture:\n")
-    drift = 0.0
-    for s, clip in zip(sections, clips):
+    # Each clip is PLACED at the timestamp its shot begins, not concatenated onto the
+    # end of the previous one. Concatenation makes every section's start depend on how
+    # long every earlier section ran, so one slow read shifts everything after it and
+    # the close ends up spoken over the wrong picture. Placing at absolute offsets means
+    # a section that runs long or short only affects itself.
+    cues = load_cues()
+    if cues:
+        starts = [c["at"] for c in cues["cues"]]
+        source = "measured from the recording"
+    else:
+        starts = [s["start"] for s in sections]
+        source = "nominal timeline - no cues.json, so re-record for exact placement"
+    if len(starts) != len(sections):
+        print(f"! cue sheet has {len(starts)} marks for {len(sections)} sections")
+        return 1
+
+    print(f"section placement ({source}):\n")
+    worst = 0.0
+    for i, (s, clip, start) in enumerate(zip(sections, clips, starts)):
         spoken = duration(clip)
-        delta = spoken - s["budget"]
-        drift += delta
-        flag = "" if abs(delta) <= 3 else ("  LONG" if delta > 0 else "  SHORT")
+        # How much room this shot actually has, from its start to the next one's.
+        room = (starts[i + 1] - start) if i + 1 < len(starts) else (cues or {}).get(
+            "duration", start + s["budget"]
+        ) - start
+        over = spoken - room
+        worst = max(worst, over)
+        flag = "" if over <= 0.5 else "  OVERRUNS THE NEXT SHOT"
         print(
-            f"  {s['title'][:34]:<36}budget {s['budget']:>3}s  spoken {spoken:>6.1f}s"
-            f"  {delta:+5.1f}s{flag}"
-        )
-    print(f"\n  cumulative drift {drift:+.1f}s")
-    if abs(drift) > 8:
-        print(
-            "  ! More than eight seconds adrift. Re-read the long sections rather than\n"
-            "    letting the mux stretch them - the picture is cut to these budgets."
+            f"  {s['title'][:32]:<34}starts {start:>6.1f}s  room {room:>5.1f}s"
+            f"  spoken {spoken:>5.1f}s  {over:+5.1f}s{flag}"
         )
 
-    concat = BUILD / "narration_concat.txt"
-    concat.write_text(
-        "\n".join(f"file '{c.resolve().as_posix()}'" for c in clips), encoding="utf-8"
-    )
+    if worst > 0.5:
+        print(
+            f"\n  ! {worst:.1f}s of overrun. That audio will still be playing when the\n"
+            "    picture cuts, so the voice describes the previous shot. Re-generate the\n"
+            "    offending section shorter, or widen its budget in record_pitch.py's\n"
+            "    TIMELINE and re-record. The mux will not silently paper over it."
+        )
+    else:
+        print("\n  every section fits inside its own shot")
+
     voice = BUILD / "narration.m4a"
+    # adelay pads each clip to its absolute start; amix sums them onto one track.
+    inputs, filters, labels = [], [], []
+    for i, (clip, start) in enumerate(zip(clips, starts)):
+        inputs += ["-i", str(clip)]
+        ms = int(round(start * 1000))
+        filters.append(f"[{i}:a]adelay={ms}|{ms},apad=pad_dur=0[a{i}]")
+        labels.append(f"[a{i}]")
+    graph = (
+        ";".join(filters)
+        + ";"
+        + "".join(labels)
+        + f"amix=inputs={len(clips)}:duration=longest:normalize=0[out]"
+    )
     subprocess.run(
-        [ffmpeg(), "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
-         "-i", str(concat), "-c:a", "aac", "-b:a", "192k", str(voice)],
+        [ffmpeg(), "-y", "-loglevel", "error", *inputs,
+         "-filter_complex", graph, "-map", "[out]",
+         "-c:a", "aac", "-b:a", "192k", str(voice)],
         check=True,
     )
 
