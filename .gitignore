@@ -21,3 +21,10 @@ dist/
 # Not product code, and large; the script that produces them is scripts/record_pitch.py.
 pitch_build/
 ablation.txt
+
+# Pitch-video production: scripts, narration and shot list. Submission artefacts,
+# not the product, and meta-commentary a reviewer of the system does not need.
+PITCH.md
+PITCH_NARRATION.md
+scripts/record_pitch.py
+scripts/build_pitch.py
