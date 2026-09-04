@@ -308,15 +308,33 @@ def cmd_fit(audio_arg: str | None) -> int:
         nxt = spans[i + 1]["starts"] if i + 1 < len(spans) else total
         targets[s["slug"]] = round(nxt - start, 2)
 
+    # Where each shot must END: exactly where the next section's speech begins, and
+    # for the last one, the end of the audio.
+    ends = [spans[i + 1]["starts"] for i in range(len(sections) - 1)] + [total]
+
     cues = load_cues()
     if not cues:
         print("! no pitch_build/cues.json - record once first so overhead can be measured")
         return 1
 
-    # A TIMELINE number is not the resulting shot length: page loads and settle waits
-    # add to it, by a different amount per section. Measure that offset from the last
-    # take and subtract it, so the next take lands on the target.
+    # A hold value is not the resulting shot length: page loads and settle waits add to
+    # it, by a different amount per section and by a different amount each run. Measure
+    # that offset from the last take and subtract it, so the next take lands on target.
+    #
+    # Crucially, measure it against the holds that ACTUALLY produced the current cue
+    # sheet. Once a fit has been applied the recorder is running audio_timeline.json's
+    # values, not the static TIMELINE, and computing overhead against the static dict
+    # attributes the whole override to overhead -- which is how the first fitted take
+    # came out 9.9s long instead of converging.
     from scripts.record_pitch import TIMELINE
+
+    baseline = dict(TIMELINE)
+    applied = BUILD / "audio_timeline.json"
+    if applied.exists():
+        import json as _json
+
+        baseline.update(_json.loads(applied.read_text(encoding="utf-8"))["timeline"])
+        print("  (overhead measured against the previously fitted holds)\n")
 
     # The narration's section slugs come from headings ("The problem" -> the_problem)
     # while the recorder keys its shots differently ("problem"). Both lists are in the
@@ -338,7 +356,7 @@ def cmd_fit(audio_arg: str | None) -> int:
     for i, s in enumerate(sections):
         key = shot_keys[i]
         room = (starts[i + 1] - starts[i]) if i + 1 < len(starts) else cues["duration"] - starts[i]
-        overhead = room - TIMELINE[key]
+        overhead = room - baseline[key]
         hold = max(4.0, targets[s["slug"]] - overhead)
         new_timeline[key] = round(hold, 1)
         print(
@@ -352,7 +370,10 @@ def cmd_fit(audio_arg: str | None) -> int:
     out.write_text(
         json.dumps(
             {"audio": audio.name, "audio_duration": round(total, 2),
-             "targets": targets, "timeline": new_timeline},
+             "targets": targets, "timeline": new_timeline,
+             # Absolute elapsed times each shot must end at. These are what the
+             # recorder actually aims for; `timeline` is only the fallback.
+             "ends": [round(x, 2) for x in ends]},
             indent=2,
         ),
         encoding="utf-8",
@@ -386,18 +407,71 @@ def load_cues() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def mux_single(audio: Path) -> int:
+    """Lay one continuous narration over the video, starting at zero.
+
+    No placement to do: the picture was cut to this audio by `fit`, so the two already
+    agree. All this reports is the residual drift between where each section is spoken
+    and where its shot begins -- which is the honest measure of whether the fit worked.
+    """
+    sections = parse_sections()
+    cues = load_cues()
+    total = duration(audio)
+
+    if cues:
+        breaks = detect_breaks(audio)
+        if len(breaks) == len(sections) - 1:
+            speech = [0.0] + [end for _, end in breaks]
+            cut = [c["at"] for c in cues["cues"]]
+            print("residual drift, voice against picture:\n")
+            worst = 0.0
+            for i, s in enumerate(sections):
+                d = cut[i] - speech[i]
+                worst = max(worst, abs(d))
+                flag = "" if abs(d) <= 1.5 else ("  PICTURE LATE" if d > 0 else "  PICTURE EARLY")
+                print(f"  {s['slug'][:24]:<26}{speech[i]:>8.1f}s{cut[i]:>10.1f}s{d:>+8.1f}s{flag}")
+            print(f"\n  worst {worst:.1f}s   audio {total:.1f}s   video {cues['duration']:.1f}s")
+            if worst > 1.5:
+                print(
+                    "  ! Run `fit` again and re-record. Each pass measures the overhead the\n"
+                    "    previous one actually incurred, so it converges."
+                )
+        else:
+            print(f"! {len(breaks)} breaks found, expected {len(sections) - 1}; drift not checked")
+
+    subprocess.run(
+        [ffmpeg(), "-y", "-loglevel", "error",
+         "-i", str(VISUAL), "-i", str(audio),
+         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+         "-movflags", "+faststart",
+         "-c:a", "aac", "-b:a", "192k", "-shortest", str(OUT)],
+        check=True,
+    )
+    print(f"\nwrote {OUT}  ({OUT.stat().st_size / 1e6:.1f} MB, {duration(OUT):.0f}s)")
+    return 0
+
+
 def cmd_mux() -> int:
     if not VISUAL.exists():
         print(f"no visual track at {VISUAL}")
         print("record it first:  python -m scripts.record_pitch")
         return 1
 
+    # Two workflows land here. One continuous narration (the `script` -> `fit` route)
+    # needs no placement at all, because the picture was cut to it; seven per-section
+    # clips (the `split` route) get placed at their cues. Prefer the single file when
+    # it exists, since a `fit` has then already aligned the video to it.
+    single = BUILD / "narration_full.mp3"
+    if single.exists():
+        return mux_single(single)
+
     sections = parse_sections()
     clips = sorted(NARR.glob("*.mp3")) + sorted(NARR.glob("*.wav"))
     clips = sorted(clips, key=lambda p: p.name)
     if not clips:
-        print(f"no narration audio in {NARR}")
-        print("run `python -m scripts.build_pitch split`, generate speech, save as .mp3")
+        print(f"no narration audio in {NARR} and no {single.name}")
+        print("either:  build_pitch script  -> one generation  -> build_pitch fit")
+        print("    or:  build_pitch split   -> seven generations")
         return 1
     if len(clips) != len(sections):
         print(f"! {len(clips)} audio file(s) for {len(sections)} sections.")

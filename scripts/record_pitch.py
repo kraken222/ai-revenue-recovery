@@ -68,6 +68,11 @@ TIMELINE = {
     "close": 19,         # was 20, had 4.4s spare
 }
 
+# Absolute elapsed times, in seconds, at which each shot must end. Populated from a
+# fitted narration; empty means fall back to holding for a duration instead.
+MARKS: list[float] = []
+
+
 def apply_audio_timeline() -> str | None:
     """Override the shot lengths with ones fitted to real narration audio.
 
@@ -83,6 +88,7 @@ def apply_audio_timeline() -> str | None:
 
     data = json.loads(path.read_text(encoding="utf-8"))
     TIMELINE.update(data["timeline"])
+    MARKS.extend(data.get("ends", []))
     return (
         f"timed to {data['audio']} "
         f"({data['audio_duration']:.1f}s) via {path.name}"
@@ -292,6 +298,8 @@ class Recorder:
         # since then IS the timestamp in the finished file.
         self.t0 = time.monotonic()
         self.cues: list[dict] = []
+        self.overruns: list[float] = []
+        self._section_started = 0.0
 
     def mark(self, section: str) -> None:
         """Record where a section actually begins in the video.
@@ -309,6 +317,40 @@ class Recorder:
     def hold(self, seconds: float) -> None:
         self.spent += seconds
         self.page.wait_for_timeout(seconds / self.speed * 1000)
+
+    def close_section(self, index: int, budget: float) -> None:
+        """End a shot, either at its absolute mark or after its remaining budget.
+
+        With a fitted narration the mark is authoritative and whatever the shot's own
+        loads cost comes out of its hold. Without one there is nothing to aim at, so it
+        falls back to spending the rest of the budget.
+        """
+        if index < len(MARKS):
+            self.hold_until(MARKS[index])
+        else:
+            remaining = budget - (self.spent - self._section_started)
+            if remaining > 0:
+                self.hold(remaining)
+        self._section_started = self.spent
+
+    def hold_until(self, mark: float) -> None:
+        """Hold until the take reaches an absolute elapsed time.
+
+        This replaces subtracting an estimated per-section overhead, which could not
+        converge: the overhead is mostly page-load time, it differs every run, and one
+        slow GitHub fetch (107s on a 42s section, once) throws the estimate for every
+        later section. Waiting for an absolute mark absorbs whatever a section actually
+        cost inside its own budget, so a stall can shorten that one shot but cannot
+        shift anything after it.
+        """
+        target = mark / self.speed
+        remaining = target - (time.monotonic() - self.t0)
+        if remaining <= 0:
+            over = -remaining * self.speed
+            print(f"    ! overran its mark by {over:.1f}s - this shot is short")
+            self.overruns.append(round(over, 1))
+            return
+        self.page.wait_for_timeout(remaining * 1000)
 
     def goto(self, url: str, settle: float = 1.5) -> bool:
         try:
@@ -398,8 +440,8 @@ def record(speed: float, online: bool) -> Path:
         if not readme_ok:
             print("  ! GitHub unreachable - falling back to the local dashboard")
             r.goto(BASE, settle=2)
-        r.hold(TIMELINE["problem"] - 15)
         r.glide(700, 5)
+        r.close_section(0, TIMELINE["problem"])
 
         # --- 0:35 why India breaks it ----------------------------------------
         r.mark("india")
@@ -407,10 +449,8 @@ def record(speed: float, online: bool) -> Path:
             y = r.find("Why the obvious design is wrong in India")
             if y:
                 r.glide(y, 4)
-            r.hold(TIMELINE["india"] - 14)
             r.glide((y or 700) + 900, 10)
-        else:
-            r.hold(TIMELINE["india"])
+        r.close_section(1, TIMELINE["india"])
 
         # --- 1:15 architecture, then the live chain ---------------------------
         r.mark("architecture")
@@ -430,12 +470,12 @@ def record(speed: float, online: bool) -> Path:
             r.hold(arch_seconds)
 
         r.goto(f"{BASE}/console", settle=2)
-        r.hold(TIMELINE["architecture"] - arch_seconds - 2)
+        r.close_section(2, TIMELINE["architecture"])
 
         # --- 2:05 where the AI is, and isn't ----------------------------------
         r.mark("ai_placement")
         r.goto(frames["eval"].as_uri(), settle=2)
-        r.hold(TIMELINE["ai_placement"] - 2)
+        r.close_section(3, TIMELINE["ai_placement"])
 
         # --- 2:45 measurement, and the flat result ----------------------------
         r.mark("measurement")
@@ -446,7 +486,7 @@ def record(speed: float, online: bool) -> Path:
         r.hold(6)
 
         r.goto(frames["ablation"].as_uri(), settle=2)
-        r.hold(TIMELINE["measurement"] - 30)
+        r.close_section(4, TIMELINE["measurement"])
 
         # --- 3:50 what breaks -------------------------------------------------
         r.mark("failures")
@@ -454,7 +494,7 @@ def record(speed: float, online: bool) -> Path:
         y = r.find("AWAITING A PERSON") or 0
         if y:
             r.glide(y, 3)
-        r.hold(TIMELINE["failures"] - 6)
+        r.close_section(5, TIMELINE["failures"])
 
         # --- 4:25 close -------------------------------------------------------
         r.mark("close")
@@ -462,7 +502,7 @@ def record(speed: float, online: bool) -> Path:
             r.goto(REPO, settle=2)
         else:
             r.goto(BASE, settle=2)
-        r.hold(TIMELINE["close"] - 2)
+        r.close_section(6, TIMELINE["close"])
 
         total = time.monotonic() - r.t0
         print(f"\n  scripted {int(r.spent // 60)}:{int(r.spent % 60):02d}"
