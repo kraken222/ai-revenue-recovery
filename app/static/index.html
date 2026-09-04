@@ -190,6 +190,121 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     gap: 12px;
     padding: 14px clamp(16px, 2.6vw, 34px) 10px;
   }
+
+  /* ---- Index of schedules ---------------------------------------------
+     Set as a printed contents list, not a nav: the rules bleed edge to edge
+     like every other schedule divider, entries are addressed by the same
+     reference box the schedules carry, and there is no card, chip or radius
+     anywhere in it. */
+  .sch-index { border-bottom: 1px solid var(--rule-faint); }
+  .sch-index-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px clamp(16px, 2.6vw, 34px) 8px;
+  }
+  .sch-index-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 clamp(16px, 2.6vw, 34px) 4px;
+    /* Two columns where the sheet is wide enough to read them as one list;
+       one column below, so an entry never wraps mid-name. */
+    columns: 2;
+    column-gap: clamp(20px, 3vw, 44px);
+  }
+  @media (max-width: 860px) { .sch-index-list { columns: 1; } }
+  .sch-index-list li { break-inside: avoid; }
+  .sch-index-list a {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding: 5px 0;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--rule-faint);
+    font-size: 13px;
+  }
+  /* A leader line to the entry, the way a printed contents page fills the gap
+     between a name and its page number. */
+  .sch-index-list em {
+    font-style: normal;
+    color: var(--ink-faint);
+    font-size: 12px;
+    margin-left: auto;
+    padding-left: 12px;
+    text-align: right;
+  }
+  .sch-index-list a:hover,
+  .sch-index-list a:focus-visible { background: #DCE3F0; }
+  .sch-index-list a:hover .sch-ref,
+  .sch-index-list a:focus-visible .sch-ref { color: var(--indigo); border-color: var(--indigo); }
+  /* The console is a different file, not a schedule in this one, so its entry is
+     separated by a printed rule and carries its own W/P address rather than an
+     A-n that would imply it lives here. */
+  .sch-index-other { margin-top: 6px; border-top: 1px solid var(--rule-faint); padding-top: 4px; }
+  .sch-index-other a { color: var(--indigo); }
+  .sch-index-other .sch-ref { border-color: var(--indigo); color: var(--indigo); }
+  .sch-index-note {
+    margin: 2px 0 0;
+    padding: 10px clamp(16px, 2.6vw, 34px) 16px;
+    max-width: 78ch;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+  .sch-index-note b { color: var(--ink); font-weight: 700; }
+
+  /* ---- Slot profile (A-4) ---------------------------------------------
+     Reuses the arm rows' own track, bar-ci and bar-mean, so the plot and the
+     table beneath it are visibly the same measurement read two ways. */
+  .slot-profile {
+    padding: 2px clamp(16px, 2.6vw, 34px) 16px;
+    border-bottom: 1px solid var(--rule-faint);
+    margin-bottom: 12px;
+  }
+  .slot-profile-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 10px;
+  }
+  .slot-profile-head h3 {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  .slot-profile-head span { font-size: 12px; color: var(--ink-faint); }
+  .slot-plot { display: flex; flex-direction: column; gap: 7px; max-width: 780px; }
+  .slot-row {
+    display: grid;
+    grid-template-columns: 52px 1fr 46px 64px;
+    align-items: center;
+    gap: 10px;
+  }
+  .slot-name { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .slot-val {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .slot-n { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .slot-profile-note {
+    margin: 12px 0 0;
+    max-width: 74ch;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+  .slot-profile-note b { color: var(--ink); }
+  .slot-profile-note em { font-style: italic; }
+  @media (max-width: 720px) {
+    .slot-row { grid-template-columns: 46px 1fr 44px; }
+    .slot-n { display: none; }
+  }
   /* A-1, A-2 … are cross-reference addresses other schedules point at, so the
      sequence carries real information rather than decorating the section. */
   .sch-ref {
@@ -627,6 +742,40 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div id="head-stamp" class="head-stamp"></div>
   </header>
 
+  <!-- Index of schedules. A real working paper opens with one, and this file needed
+       it for a concrete reason: a reader landing here met A-1…A-6 as bare addresses
+       with no way to learn what the sheet contained or that a second sheet existed
+       at all. The index is the world's own answer to both — it is what an auditor
+       reaches for, not a nav bar borrowed from a SaaS app. -->
+  <nav class="sch-index" aria-label="Index of schedules">
+    <div class="sch-index-head">
+      <span class="sch-ref">Index</span>
+      <h2 class="sch-name">Schedules in this file</h2>
+      <span class="sch-note">select a reference to go to its schedule</span>
+    </div>
+    <ol class="sch-index-list">
+      <li><a href="#sch-lead"><span class="sch-ref">A-1</span> Recovery performance <em>the headline figures, each traced</em></a></li>
+      <li><a href="#sch-register"><span class="sch-ref">A-2</span> Register of failed payments <em>every payment, uncapped</em></a></li>
+      <li><a href="#sch-compliance"><span class="sch-ref">A-3</span> Compliance assertions <em>measured on executed actions</em></a></li>
+      <li><a href="#sch-bandit"><span class="sch-ref">A-4</span> Learned retry-slot posteriors <em>what the bandit worked out</em></a></li>
+      <li><a href="#sch-exceptions"><span class="sch-ref">A-5</span> Schedule of exceptions <em>every payment the agent stopped</em></a></li>
+      <li><a href="#sch-rules"><span class="sch-ref">A-6</span> Compliance rules applied <em>every rule that shaped an action</em></a></li>
+      <li class="sch-index-other">
+        <a href="/console"><span class="sch-ref">RCV-02</span> Agent console <em>live decision stream and the human review queue</em></a>
+      </li>
+    </ol>
+    <!-- The terms in the index block, glossed once. Without this the header reads as
+         auditor's shorthand to anyone who has not held a working paper: "W/P Ref"
+         and "Assertions" are precise, and precise is not the same as self-evident. -->
+    <p class="sch-index-note">
+      <b>Reading the block above.</b> <b>W/P Ref</b> is this file's own address, so
+      another schedule can cite it. <b>Basis</b> names where the figures come from —
+      <b>synthetic</b> throughout, and never presented as real Razorpay traffic.
+      <b>Assertions</b> is how many compliance invariants were checked against actions
+      the agent actually executed, and how many held.
+    </p>
+  </nav>
+
   <section class="schedule" id="sch-lead">
     <div class="sch-head">
       <span class="sch-ref">A-1</span>
@@ -874,6 +1023,73 @@ function renderCompliance(checks) {
 
 /* ---- A-4 ------------------------------------------------------------- */
 
+/* The claim this whole schedule exists to support — that the bandit recovered a
+   time-of-day effect nobody told it about — was previously legible only by reading
+   24 rows and holding them in your head. Aggregating the arms by slot puts the
+   finding on the page.
+
+   Drawn as a dot-and-interval plot, which is the statistician's own chart rather
+   than a decorative one: each slot gets its pooled win rate as a mark and its
+   Wilson interval as a span, so a slot that merely looks best at low n is visibly
+   uncertain instead of quietly winning. Same grammar as the per-arm bars below it,
+   read across slots instead of down arms. */
+function renderSlotProfile(arms) {
+  const SLOTS = ["00:00", "06:00", "12:00", "18:00"];
+  const pooled = SLOTS.map((slot) => {
+    const inSlot = arms.filter((a) => (a.slot || "").startsWith(slot));
+    const pulls = inSlot.reduce((n, a) => n + a.pulls, 0);
+    // Pool the underlying counts rather than averaging rates: a mean of rates
+    // weights a 3-pull arm the same as a 30-pull one, which is how a slot with
+    // almost no evidence ends up looking like the winner.
+    const wins = inSlot.reduce((n, a) => n + a.posterior_mean * a.pulls, 0);
+    const p = pulls ? wins / pulls : 0;
+    // Wilson score interval - the same one the arm rows use, and honest at low n
+    // where the normal approximation is wrong in the flattering direction.
+    const z = 1.96, n = pulls;
+    let lo = 0, hi = 0;
+    if (n) {
+      const d = 1 + z * z / n;
+      const c = p + z * z / (2 * n);
+      const s = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+      lo = Math.max(0, (c - s) / d);
+      hi = Math.min(1, (c + s) / d);
+    }
+    return { slot, pulls, p, lo, hi };
+  }).filter((s) => s.pulls > 0);
+
+  if (pooled.length < 2) return "";
+
+  const best = pooled.reduce((a, b) => (b.p > a.p ? b : a));
+  return `
+    <div class="slot-profile">
+      <div class="slot-profile-head">
+        <h3>Win rate by retry slot</h3>
+        <span>pooled across arms · mark is the rate, span is its 95% Wilson interval</span>
+      </div>
+      <div class="slot-plot" role="img"
+           aria-label="Win rate by retry slot. ${pooled.map((s) =>
+             `${s.slot} ${pct(s.p)} over ${s.pulls} pulls`).join("; ")}.">
+        ${pooled.map((s) => `
+          <div class="slot-row">
+            <span class="slot-name">${esc(s.slot)}</span>
+            <div class="bar-track">
+              <div class="bar-ci" style="left:${(s.lo * 100).toFixed(1)}%;right:${(100 - s.hi * 100).toFixed(1)}%"></div>
+              <div class="bar-mean" style="left:${(s.p * 100).toFixed(1)}%"></div>
+            </div>
+            <span class="slot-val">${pct(s.p)}</span>
+            <span class="slot-n">${s.pulls} pull${s.pulls === 1 ? "" : "s"}</span>
+          </div>`).join("")}
+      </div>
+      <p class="slot-profile-note">
+        The simulator hides a time-of-day multiplier the agent is never told. It reads
+        it back from binary outcomes alone — <b>${esc(best.slot)}</b> leads here at
+        ${pct(best.p)}. A silent debit at that hour reaches nobody, so it is unrestricted;
+        a <em>message</em> at the same hour would breach the 08:00–19:00 IST contact
+        window, which is why those two actions are gated separately.
+      </p>
+    </div>`;
+}
+
 function renderBandit(arms) {
   if (!arms.length) { $("bandit").innerHTML = emptyState("bandit arms pulled"); return; }
 
@@ -882,7 +1098,7 @@ function renderBandit(arms) {
      under one bar is a point estimate wearing the word "posterior". The interval
      width also replaces an opacity-only "low evidence" cue, which encoded meaning
      by nothing but transparency and no legend. */
-  $("bandit").innerHTML = `
+  $("bandit").innerHTML = renderSlotProfile(arms) + `
     <table class="t-wide">
       <thead><tr>
         <th>Rail</th><th>Category</th><th>Slot (UTC)</th>

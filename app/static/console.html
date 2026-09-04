@@ -90,6 +90,14 @@ with newest at the top; the human queue on the right, worked longest-waiting fir
   .sub { color: var(--ink-soft); font-size: 12px; margin: 4px 0 0; }
   .sub a { color: var(--indigo); }
 
+  /* The cross-reference to the working papers, set as a traced-to line rather than
+     a link in running prose - it is an address resolving, the same as any A-n. */
+  .xref-line { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-top: 9px; }
+  .xref-line .ref { border-color: var(--indigo); color: var(--indigo); }
+  .xref-line a { text-decoration: none; border-bottom: 1px dotted var(--indigo); }
+  .xref-line a:hover, .xref-line a:focus-visible { background: #DCE3F0; }
+  .xref-hint { color: var(--ink-faint); font-size: 11.5px; }
+
   .pulse { display: flex; gap: 1px; background: var(--rule-faint); border: 1px solid var(--rule-faint); }
   .pulse div { background: var(--paper); padding: 6px 13px; text-align: right; min-width: 82px; }
   .pulse dt {
@@ -253,7 +261,16 @@ with newest at the top; the human queue on the right, worked longest-waiting fir
       <h1>Recovery Agent Console</h1>
       <p class="sub">
         Live decision stream. Every row is one stage of the agent's reasoning; select a
-        row to read the whole chain. &nbsp;<a href="/">Working papers &rarr;</a>
+        row to read the whole chain.
+      </p>
+      <!-- This file's own address, and a leader back to the sheet that cites it.
+           It is RCV-02 because RCV-01 is the working papers: in a world built on
+           references resolving, two files may not share one address - the same rule
+           that keeps A-1 off the working papers' own header. -->
+      <p class="sub xref-line">
+        <span class="ref">RCV-02</span>
+        <a href="/">RCV-01 &middot; Recovery working papers &rarr;</a>
+        <span class="xref-hint">the measured result this console produces</span>
       </p>
     </div>
     <dl class="pulse" id="pulse"></dl>
