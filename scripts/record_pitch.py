@@ -68,6 +68,27 @@ TIMELINE = {
     "close": 19,         # was 20, had 4.4s spare
 }
 
+def apply_audio_timeline() -> str | None:
+    """Override the shot lengths with ones fitted to real narration audio.
+
+    Written by `build_pitch fit` after measuring where the breaks fall in a finished
+    voice track. Cutting the picture to the audio is the only way to guarantee sync
+    from a single generation: the alternative needs each section's spoken length known
+    before it exists, and a voice engine's pace is its own.
+    """
+    path = BUILD / "audio_timeline.json"
+    if not path.exists():
+        return None
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    TIMELINE.update(data["timeline"])
+    return (
+        f"timed to {data['audio']} "
+        f"({data['audio_duration']:.1f}s) via {path.name}"
+    )
+
+
 TERMINAL_CSS = """
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
@@ -486,7 +507,12 @@ def main() -> int:
         print("Start it first:  uvicorn app.main:app --reload")
         return 1
 
+    fitted = apply_audio_timeline()
     print(f"Recording at {WIDTH}x{HEIGHT}, speed x{args.speed}")
+    if fitted:
+        print(f"  {fitted}")
+    else:
+        print("  using the default shot lengths (no audio_timeline.json)")
     out = record(args.speed, online=not args.offline)
     size = out.stat().st_size / 1e6
     print(f"\nwrote {out}  ({size:.1f} MB)")

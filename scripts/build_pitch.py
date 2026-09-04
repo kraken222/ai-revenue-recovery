@@ -205,6 +205,171 @@ def duration(path: Path) -> float:
     return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
 
 
+# Long enough for `silencedetect` to find reliably, short enough that ElevenLabs
+# honours it -- break tags above three seconds are ignored or clipped.
+BREAK_SECONDS = 2.5
+# Anything at least this long is a deliberate break rather than a breath. Natural
+# pauses inside a sentence sit well under a second.
+BREAK_FLOOR = 1.4
+
+
+def cmd_script() -> int:
+    """One block of text to paste into a TTS engine, breaks included."""
+    sections = parse_sections()
+    parts = []
+    for i, s in enumerate(sections):
+        parts.append(s["text"])
+        if i < len(sections) - 1:
+            parts.append(f'<break time="{BREAK_SECONDS}s" />')
+    body = "\n\n".join(parts)
+
+    path = BUILD / "narration_full.txt"
+    BUILD.mkdir(exist_ok=True)
+    path.write_text(body, encoding="utf-8", newline="\n")
+
+    chars = len(body)
+    print(f"wrote {path}  ({chars:,} characters, {len(sections)} sections)")
+    print(
+        "\nPaste the whole file into ElevenLabs as ONE generation and save the result\n"
+        f"as {BUILD / 'narration_full.mp3'}.\n"
+        "\nThe <break> tags are load-bearing: they are how the next step finds where one\n"
+        "section ends and the next begins. Do not strip them, and do not split the text\n"
+        "into separate generations -- that is the other workflow (`split`).\n"
+        "\nThen:  python -m scripts.build_pitch fit\n"
+    )
+    if chars > 4800:
+        print(
+            f"! {chars:,} characters may exceed a single-generation limit on some plans.\n"
+            "  If it is rejected, use `split` and do seven generations instead."
+        )
+    return 0
+
+
+def detect_breaks(audio: Path) -> list[tuple[float, float]]:
+    """Silences in the narration that are long enough to be deliberate breaks."""
+    out = subprocess.run(
+        [ffmpeg(), "-i", str(audio), "-af",
+         f"silencedetect=noise=-38dB:d={BREAK_FLOOR}", "-f", "null", "-"],
+        capture_output=True, text=True,
+    ).stderr
+    starts = [float(m) for m in re.findall(r"silence_start: ([\d.]+)", out)]
+    ends = [float(m) for m in re.findall(r"silence_end: ([\d.]+)", out)]
+    return list(zip(starts, ends))
+
+
+def cmd_fit(audio_arg: str | None) -> int:
+    """Re-time the VIDEO to the narration, rather than the other way round.
+
+    Placing audio into a fixed picture needs the spoken duration of every section known
+    in advance, and it is not -- a voice engine's pace is its own. Measuring the audio
+    first and cutting the picture to it removes the guess entirely: the video is the
+    thing this project can regenerate on demand, so it is the thing that should move.
+    """
+    audio = Path(audio_arg) if audio_arg else BUILD / "narration_full.mp3"
+    if not audio.exists():
+        print(f"no narration audio at {audio}")
+        print("run `python -m scripts.build_pitch script`, generate it, save it there")
+        return 1
+
+    sections = parse_sections()
+    total = duration(audio)
+    breaks = detect_breaks(audio)
+    expected = len(sections) - 1
+
+    print(f"{audio.name}: {total:.1f}s, {len(breaks)} break(s) found, expected {expected}\n")
+    if len(breaks) != expected:
+        print(
+            f"! Found {len(breaks)} breaks, not {expected}. The fit cannot be trusted, so\n"
+            "  nothing has been written. Usual causes:\n"
+            "   - the <break> tags were stripped or the engine ignored them\n"
+            "   - the text was generated in pieces rather than as one block\n"
+            "   - a section is so slow it contains a pause over "
+            f"{BREAK_FLOOR}s\n"
+            "  Re-generate from narration_full.txt as a single pass, or use `split`."
+        )
+        for i, (s, e) in enumerate(breaks, 1):
+            print(f"    break {i}: {s:.1f}s -> {e:.1f}s  ({e - s:.1f}s)")
+        return 1
+
+    # Each section runs from where the previous break ended to where the next starts.
+    spans = []
+    cursor = 0.0
+    for i, s in enumerate(sections):
+        end = breaks[i][0] if i < len(breaks) else total
+        spans.append({"section": s["slug"], "speech": round(end - cursor, 2),
+                      "starts": round(cursor, 2)})
+        cursor = breaks[i][1] if i < len(breaks) else total
+
+    # The picture should cut when the NEXT section starts speaking, so a shot spans its
+    # own speech plus the break that follows it.
+    targets = {}
+    for i, s in enumerate(sections):
+        start = spans[i]["starts"]
+        nxt = spans[i + 1]["starts"] if i + 1 < len(spans) else total
+        targets[s["slug"]] = round(nxt - start, 2)
+
+    cues = load_cues()
+    if not cues:
+        print("! no pitch_build/cues.json - record once first so overhead can be measured")
+        return 1
+
+    # A TIMELINE number is not the resulting shot length: page loads and settle waits
+    # add to it, by a different amount per section. Measure that offset from the last
+    # take and subtract it, so the next take lands on the target.
+    from scripts.record_pitch import TIMELINE
+
+    # The narration's section slugs come from headings ("The problem" -> the_problem)
+    # while the recorder keys its shots differently ("problem"). Both lists are in the
+    # same order and describe the same seven sections, so they are matched by position
+    # -- and the count is asserted, because a silent mismatch here would fit the video
+    # to the wrong sections.
+    shot_keys = list(TIMELINE.keys())
+    if len(shot_keys) != len(sections):
+        print(
+            f"! {len(sections)} narration sections against {len(shot_keys)} shots.\n"
+            "  PITCH_NARRATION.md and record_pitch.py's TIMELINE have diverged."
+        )
+        return 1
+
+    starts = [c["at"] for c in cues["cues"]]
+    print(f"{'section':<24}{'speech':>9}{'target':>9}{'overhead':>10}{'new hold':>10}")
+    print("-" * 62)
+    new_timeline = {}
+    for i, s in enumerate(sections):
+        key = shot_keys[i]
+        room = (starts[i + 1] - starts[i]) if i + 1 < len(starts) else cues["duration"] - starts[i]
+        overhead = room - TIMELINE[key]
+        hold = max(4.0, targets[s["slug"]] - overhead)
+        new_timeline[key] = round(hold, 1)
+        print(
+            f"  {key[:22]:<22}{spans[i]['speech']:>8.1f}s{targets[s['slug']]:>8.1f}s"
+            f"{overhead:>9.1f}s{hold:>9.1f}s"
+        )
+
+    import json
+
+    out = BUILD / "audio_timeline.json"
+    out.write_text(
+        json.dumps(
+            {"audio": audio.name, "audio_duration": round(total, 2),
+             "targets": targets, "timeline": new_timeline},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print("-" * 62)
+    print(f"video should run {total:.1f}s = {int(total // 60)}:{int(total % 60):02d}")
+    if total > 300:
+        print("! that is over the five-minute ceiling - shorten the narration")
+    print(f"\nwrote {out}")
+    print(
+        "\nNow re-record; it picks this up automatically:\n"
+        "    python -m scripts.record_pitch\n"
+        "    python -m scripts.build_pitch mux\n"
+    )
+    return 0
+
+
 def load_cues() -> dict | None:
     """Where each section actually starts in the recorded file.
 
@@ -319,8 +484,13 @@ def cmd_mux() -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("step", choices=["split", "mux"])
+    parser.add_argument("step", choices=["script", "fit", "split", "mux"])
+    parser.add_argument("audio", nargs="?", help="fit: the narration file (default pitch_build/narration_full.mp3)")
     args = parser.parse_args()
+    if args.step == "script":
+        return cmd_script()
+    if args.step == "fit":
+        return cmd_fit(args.audio)
     return cmd_split() if args.step == "split" else cmd_mux()
 
 
